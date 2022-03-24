@@ -33,6 +33,8 @@ const (
 // (to make it easy to mock for tests)
 type TargetAPI interface {
 	Version(context.Context) (api.APIVersion, error)
+	ChainGetParentMessages(context.Context, cid.Cid) ([]api.Message, error)
+	ChainGetParentReceipts(context.Context, cid.Cid) ([]*types.MessageReceipt, error)
 	ChainGetBlockMessages(context.Context, cid.Cid) (*api.BlockMessages, error)
 	ChainGetMessage(ctx context.Context, mc cid.Cid) (*types.Message, error)
 	ChainGetNode(ctx context.Context, p string) (*api.IpldObject, error)
@@ -44,10 +46,12 @@ type TargetAPI interface {
 	ChainNotify(context.Context) (<-chan []*api.HeadChange, error)
 	ChainGetPath(ctx context.Context, from, to types.TipSetKey) ([]*api.HeadChange, error)
 	ChainReadObj(context.Context, cid.Cid) ([]byte, error)
+	ChainGetGenesis(context.Context) (*types.TipSet, error)
 	GasEstimateMessageGas(ctx context.Context, msg *types.Message, spec *api.MessageSendSpec, tsk types.TipSetKey) (*types.Message, error)
 	MpoolPushUntrusted(ctx context.Context, sm *types.SignedMessage) (cid.Cid, error)
 	MsigGetAvailableBalance(ctx context.Context, addr address.Address, tsk types.TipSetKey) (types.BigInt, error)
 	MsigGetVested(ctx context.Context, addr address.Address, start types.TipSetKey, end types.TipSetKey) (types.BigInt, error)
+	MsigGetVestingSchedule(context.Context, address.Address, types.TipSetKey) (api.MsigVesting, error)
 	MsigGetPending(ctx context.Context, addr address.Address, ts types.TipSetKey) ([]*api.MsigTransaction, error)
 	StateAccountKey(ctx context.Context, addr address.Address, tsk types.TipSetKey) (address.Address, error)
 	StateDealProviderCollateralBounds(ctx context.Context, size abi.PaddedPieceSize, verified bool, tsk types.TipSetKey) (api.DealCollateralBounds, error)
@@ -144,6 +148,14 @@ func (gw *Node) Version(ctx context.Context) (api.APIVersion, error) {
 	return gw.target.Version(ctx)
 }
 
+func (gw *Node) ChainGetParentMessages(ctx context.Context, c cid.Cid) ([]api.Message, error) {
+	return gw.target.ChainGetParentMessages(ctx, c)
+}
+
+func (gw *Node) ChainGetParentReceipts(ctx context.Context, c cid.Cid) ([]*types.MessageReceipt, error) {
+	return gw.target.ChainGetParentReceipts(ctx, c)
+}
+
 func (gw *Node) ChainGetBlockMessages(ctx context.Context, c cid.Cid) (*api.BlockMessages, error) {
 	return gw.target.ChainGetBlockMessages(ctx, c)
 }
@@ -231,6 +243,10 @@ func (gw *Node) ChainGetPath(ctx context.Context, from, to types.TipSetKey) ([]*
 	return gw.target.ChainGetPath(ctx, from, to)
 }
 
+func (gw *Node) ChainGetGenesis(ctx context.Context) (*types.TipSet, error) {
+	return gw.target.ChainGetGenesis(ctx)
+}
+
 func (gw *Node) ChainReadObj(ctx context.Context, c cid.Cid) ([]byte, error) {
 	return gw.target.ChainReadObj(ctx, c)
 }
@@ -265,6 +281,13 @@ func (gw *Node) MsigGetVested(ctx context.Context, addr address.Address, start t
 	}
 
 	return gw.target.MsigGetVested(ctx, addr, start, end)
+}
+
+func (gw *Node) MsigGetVestingSchedule(ctx context.Context, addr address.Address, tsk types.TipSetKey) (api.MsigVesting, error) {
+	if err := gw.checkTipsetKey(ctx, tsk); err != nil {
+		return api.MsigVesting{}, err
+	}
+	return gw.target.MsigGetVestingSchedule(ctx, addr, tsk)
 }
 
 func (gw *Node) MsigGetPending(ctx context.Context, addr address.Address, tsk types.TipSetKey) ([]*api.MsigTransaction, error) {

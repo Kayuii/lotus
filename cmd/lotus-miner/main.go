@@ -7,7 +7,6 @@ import (
 	"github.com/fatih/color"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/urfave/cli/v2"
-	"go.opencensus.io/trace"
 	"golang.org/x/xerrors"
 
 	cliutil "github.com/filecoin-project/lotus/cli/util"
@@ -49,16 +48,18 @@ func main() {
 		lcli.WithCategory("market", retrievalDealsCmd),
 		lcli.WithCategory("market", dataTransfersCmd),
 		lcli.WithCategory("market", dagstoreCmd),
+		lcli.WithCategory("market", indexProvCmd),
 		lcli.WithCategory("storage", sectorsCmd),
 		lcli.WithCategory("storage", provingCmd),
 		lcli.WithCategory("storage", storageCmd),
 		lcli.WithCategory("storage", sealingCmd),
 		lcli.WithCategory("retrieval", piecesCmd),
 	}
+
 	jaeger := tracing.SetupJaegerTracing("lotus")
 	defer func() {
 		if jaeger != nil {
-			jaeger.Flush()
+			_ = jaeger.ForceFlush(context.Background())
 		}
 	}()
 
@@ -66,7 +67,9 @@ func main() {
 		cmd := cmd
 		originBefore := cmd.Before
 		cmd.Before = func(cctx *cli.Context) error {
-			trace.UnregisterExporter(jaeger)
+			if jaeger != nil {
+				_ = jaeger.Shutdown(cctx.Context)
+			}
 			jaeger = tracing.SetupJaegerTracing("lotus/" + cmd.Name)
 
 			if cctx.IsSet("color") {
@@ -114,6 +117,12 @@ func main() {
 				DefaultText: "depends on output being a TTY",
 			},
 			&cli.StringFlag{
+				Name:    "panic-reports",
+				EnvVars: []string{"LOTUS_PANIC_REPORT_PATH"},
+				Hidden:  true,
+				Value:   "~/.lotusminer", // should follow --repo default
+			},
+			&cli.StringFlag{
 				Name:    "repo",
 				EnvVars: []string{"LOTUS_PATH"},
 				Hidden:  true,
@@ -143,6 +152,14 @@ func main() {
 			// common commands by overriding the repoType.
 			if c.Bool("call-on-markets") {
 				c.App.Metadata["repoType"] = repo.Markets
+			}
+			return nil
+		},
+		After: func(c *cli.Context) error {
+			if r := recover(); r != nil {
+				// Generate report in LOTUS_PATH and re-raise panic
+				build.GeneratePanicReport(c.String("panic-reports"), c.String(FlagMinerRepo), c.App.Name)
+				panic(r)
 			}
 			return nil
 		},

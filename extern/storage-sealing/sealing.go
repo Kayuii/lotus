@@ -13,6 +13,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/crypto"
@@ -63,6 +64,7 @@ type SealingAPI interface {
 	StateMinerInfo(context.Context, address.Address, TipSetToken) (miner.MinerInfo, error)
 	StateMinerAvailableBalance(context.Context, address.Address, TipSetToken) (big.Int, error)
 	StateMinerSectorAllocated(context.Context, address.Address, abi.SectorNumber, TipSetToken) (bool, error)
+	StateMinerActiveSectors(context.Context, address.Address, TipSetToken) (bitfield.BitField, error)
 	StateMarketStorageDeal(context.Context, abi.DealID, TipSetToken) (*api.MarketDeal, error)
 	StateMarketStorageDealProposal(context.Context, abi.DealID, TipSetToken) (market.DealProposal, error)
 	StateNetworkVersion(ctx context.Context, tok TipSetToken) (network.Version, error)
@@ -72,8 +74,8 @@ type SealingAPI interface {
 	ChainHead(ctx context.Context) (TipSetToken, abi.ChainEpoch, error)
 	ChainBaseFee(context.Context, TipSetToken) (abi.TokenAmount, error)
 	ChainGetMessage(ctx context.Context, mc cid.Cid) (*types.Message, error)
-	ChainGetRandomnessFromBeacon(ctx context.Context, tok TipSetToken, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error)
-	ChainGetRandomnessFromTickets(ctx context.Context, tok TipSetToken, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error)
+	StateGetRandomnessFromBeacon(ctx context.Context, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte, tok TipSetToken) (abi.Randomness, error)
+	StateGetRandomnessFromTickets(ctx context.Context, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte, tok TipSetToken) (abi.Randomness, error)
 	ChainReadObj(context.Context, cid.Cid) ([]byte, error)
 }
 
@@ -103,10 +105,9 @@ type Sealing struct {
 	sectorTimers   map[abi.SectorID]*time.Timer
 	pendingPieces  map[cid.Cid]*pendingPiece
 	assignedPieces map[abi.SectorID][]cid.Cid
-	creating       *abi.SectorNumber // used to prevent a race where we could create a new sector more than once
+	nextDealSector *abi.SectorNumber // used to prevent a race where we could create a new sector more than once
 
-	upgradeLk sync.Mutex
-	toUpgrade map[abi.SectorNumber]struct{}
+	available map[abi.SectorID]struct{}
 
 	notifee SectorStateNotifee
 	addrSel AddrSel
@@ -121,12 +122,34 @@ type Sealing struct {
 }
 
 type openSector struct {
-	used abi.UnpaddedPieceSize // change to bitfield/rle when AddPiece gains offset support to better fill sectors
+	used     abi.UnpaddedPieceSize // change to bitfield/rle when AddPiece gains offset support to better fill sectors
+	number   abi.SectorNumber
+	ccUpdate bool
 
 	maybeAccept func(cid.Cid) error // called with inputLk
 }
 
+func (o *openSector) dealFitsInLifetime(dealEnd abi.ChainEpoch, expF expFn) (bool, error) {
+	if !o.ccUpdate {
+		return true, nil
+	}
+	expiration, _, err := expF(o.number)
+	if err != nil {
+		return false, err
+	}
+	return expiration >= dealEnd, nil
+}
+
+type pieceAcceptResp struct {
+	sn     abi.SectorNumber
+	offset abi.UnpaddedPieceSize
+	err    error
+}
+
 type pendingPiece struct {
+	doneCh chan struct{}
+	resp   *pieceAcceptResp
+
 	size abi.UnpaddedPieceSize
 	deal api.PieceDealInfo
 
@@ -154,7 +177,8 @@ func New(mctx context.Context, api SealingAPI, fc config.MinerFeeConfig, events 
 		sectorTimers:   map[abi.SectorID]*time.Timer{},
 		pendingPieces:  map[cid.Cid]*pendingPiece{},
 		assignedPieces: map[abi.SectorID][]cid.Cid{},
-		toUpgrade:      map[abi.SectorNumber]struct{}{},
+
+		available: map[abi.SectorID]struct{}{},
 
 		notifee: notifee,
 		addrSel: as,
@@ -166,7 +190,8 @@ func New(mctx context.Context, api SealingAPI, fc config.MinerFeeConfig, events 
 		getConfig: gc,
 
 		stats: SectorStats{
-			bySector: map[abi.SectorID]statSectorState{},
+			bySector: map[abi.SectorID]SectorState{},
+			byState:  map[SectorState]int64{},
 		},
 	}
 	s.startupWait.Add(1)

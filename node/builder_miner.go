@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-fil-markets/storagemarket/impl/storedask"
 	"github.com/filecoin-project/go-state-types/abi"
+	provider "github.com/filecoin-project/index-provider"
 	storage2 "github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/lotus/api"
@@ -25,6 +26,7 @@ import (
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/lotus/markets/dagstore"
 	"github.com/filecoin-project/lotus/markets/dealfilter"
+	"github.com/filecoin-project/lotus/markets/idxprov"
 	"github.com/filecoin-project/lotus/markets/retrievaladapter"
 	"github.com/filecoin-project/lotus/markets/sectoraccessor"
 	"github.com/filecoin-project/lotus/markets/storageadapter"
@@ -136,7 +138,7 @@ func ConfigStorageMiner(c interface{}) Option {
 		If(cfg.Subsystems.EnableMarkets,
 			// Markets
 			Override(new(dtypes.StagingBlockstore), modules.StagingBlockstore),
-			Override(new(dtypes.StagingGraphsync), modules.StagingGraphsync(cfg.Dealmaking.SimultaneousTransfers)),
+			Override(new(dtypes.StagingGraphsync), modules.StagingGraphsync(cfg.Dealmaking.SimultaneousTransfersForStorage, cfg.Dealmaking.SimultaneousTransfersForStoragePerClient, cfg.Dealmaking.SimultaneousTransfersForRetrieval)),
 			Override(new(dtypes.ProviderPieceStore), modules.NewProviderPieceStore),
 			Override(new(*sectorblocks.SectorBlocks), sectorblocks.NewSectorBlocks),
 
@@ -151,11 +153,12 @@ func ConfigStorageMiner(c interface{}) Option {
 			Override(new(dtypes.RetrievalPricingFunc), modules.RetrievalPricingFunc(cfg.Dealmaking)),
 
 			// DAG Store
-			Override(new(dagstore.MinerAPI), modules.NewMinerAPI),
-			Override(DAGStoreKey, modules.DAGStore),
+			Override(new(dagstore.MinerAPI), modules.NewMinerAPI(cfg.DAGStore)),
+			Override(DAGStoreKey, modules.DAGStore(cfg.DAGStore)),
 
 			// Markets (retrieval)
-			Override(new(retrievalmarket.SectorAccessor), sectoraccessor.NewSectorAccessor),
+			Override(new(dagstore.SectorAccessor), sectoraccessor.NewSectorAccessor),
+			Override(new(retrievalmarket.SectorAccessor), From(new(dagstore.SectorAccessor))),
 			Override(new(retrievalmarket.RetrievalProviderNode), retrievaladapter.NewRetrievalProviderNode),
 			Override(new(rmnet.RetrievalMarketNetwork), modules.RetrievalNetwork),
 			Override(new(retrievalmarket.RetrievalProvider), modules.RetrievalProvider),
@@ -163,7 +166,11 @@ func ConfigStorageMiner(c interface{}) Option {
 			Override(HandleRetrievalKey, modules.HandleRetrieval),
 
 			// Markets (storage)
-			Override(new(dtypes.ProviderDataTransfer), modules.NewProviderDAGServiceDataTransfer),
+			Override(new(dtypes.ProviderTransferNetwork), modules.NewProviderTransferNetwork),
+			Override(new(dtypes.ProviderTransport), modules.NewProviderTransport),
+			Override(new(dtypes.ProviderDataTransfer), modules.NewProviderDataTransfer),
+			Override(new(idxprov.MeshCreator), idxprov.NewMeshCreator),
+			Override(new(provider.Interface), modules.IndexProvider(cfg.IndexProvider)),
 			Override(new(*storedask.StoredAsk), modules.NewStorageAsk),
 			Override(new(dtypes.StorageDealFilter), modules.BasicDealFilter(cfg.Dealmaking, nil)),
 			Override(new(storagemarket.StorageProvider), modules.StorageProvider),
@@ -199,8 +206,9 @@ func ConfigStorageMiner(c interface{}) Option {
 				Override(new(dtypes.RetrievalDealFilter), modules.RetrievalDealFilter(dealfilter.CliRetrievalDealFilter(cfg.Dealmaking.RetrievalFilter))),
 			),
 			Override(new(*storageadapter.DealPublisher), storageadapter.NewDealPublisher(&cfg.Fees, storageadapter.PublishMsgConfig{
-				Period:         time.Duration(cfg.Dealmaking.PublishMsgPeriod),
-				MaxDealsPerMsg: cfg.Dealmaking.MaxDealsPerPublishMsg,
+				Period:                  time.Duration(cfg.Dealmaking.PublishMsgPeriod),
+				MaxDealsPerMsg:          cfg.Dealmaking.MaxDealsPerPublishMsg,
+				StartEpochSealingBuffer: cfg.Dealmaking.StartEpochSealingBuffer,
 			})),
 			Override(new(storagemarket.StorageProviderNode), storageadapter.NewProviderNodeAdapter(&cfg.Fees, &cfg.Dealmaking)),
 		),

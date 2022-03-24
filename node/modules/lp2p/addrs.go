@@ -11,20 +11,7 @@ import (
 	mamask "github.com/whyrusleeping/multiaddr-filter"
 )
 
-func AddrFilters(filters []string) func() (opts Libp2pOpts, err error) {
-	return func() (opts Libp2pOpts, err error) {
-		for _, s := range filters {
-			f, err := mamask.NewMask(s)
-			if err != nil {
-				return opts, fmt.Errorf("incorrectly formatted address filter in config: %s", s)
-			}
-			opts.Opts = append(opts.Opts, libp2p.FilterAddresses(f)) //nolint:staticcheck
-		}
-		return opts, nil
-	}
-}
-
-func makeAddrsFactory(announce []string, noAnnounce []string) (p2pbhost.AddrsFactory, error) {
+func MakeAddrsFactory(announce []string, noAnnounce []string) (p2pbhost.AddrsFactory, error) {
 	var annAddrs []ma.Multiaddr
 	for _, addr := range announce {
 		maddr, err := ma.NewMultiaddr(addr)
@@ -72,7 +59,7 @@ func makeAddrsFactory(announce []string, noAnnounce []string) (p2pbhost.AddrsFac
 
 func AddrsFactory(announce []string, noAnnounce []string) func() (opts Libp2pOpts, err error) {
 	return func() (opts Libp2pOpts, err error) {
-		addrsFactory, err := makeAddrsFactory(announce, noAnnounce)
+		addrsFactory, err := MakeAddrsFactory(announce, noAnnounce)
 		if err != nil {
 			return opts, err
 		}

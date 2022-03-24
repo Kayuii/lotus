@@ -1,3 +1,4 @@
+//stm: #unit
 package store_test
 
 import (
@@ -28,6 +29,8 @@ func init() {
 }
 
 func BenchmarkGetRandomness(b *testing.B) {
+	//stm: @CHAIN_GEN_NEXT_TIPSET_001
+	//stm: @CHAIN_STATE_GET_RANDOMNESS_FROM_TICKETS_001
 	cg, err := gen.NewGenerator()
 	if err != nil {
 		b.Fatal(err)
@@ -77,7 +80,7 @@ func BenchmarkGetRandomness(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := cs.GetChainRandomnessLookingBack(context.TODO(), last.Cids(), crypto.DomainSeparationTag_SealRandomness, 500, nil)
+		_, err := cg.StateManager().GetRandomnessFromTickets(context.TODO(), crypto.DomainSeparationTag_SealRandomness, 500, nil, last.Key())
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -85,6 +88,8 @@ func BenchmarkGetRandomness(b *testing.B) {
 }
 
 func TestChainExportImport(t *testing.T) {
+	//stm: @CHAIN_GEN_NEXT_TIPSET_001
+	//stm: @CHAIN_STORE_IMPORT_001
 	cg, err := gen.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +114,7 @@ func TestChainExportImport(t *testing.T) {
 	cs := store.NewChainStore(nbs, nbs, datastore.NewMapDatastore(), filcns.Weight, nil)
 	defer cs.Close() //nolint:errcheck
 
-	root, err := cs.Import(buf)
+	root, err := cs.Import(context.TODO(), buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,6 +125,9 @@ func TestChainExportImport(t *testing.T) {
 }
 
 func TestChainExportImportFull(t *testing.T) {
+	//stm: @CHAIN_GEN_NEXT_TIPSET_001
+	//stm: @CHAIN_STORE_IMPORT_001, @CHAIN_STORE_EXPORT_001, @CHAIN_STORE_SET_HEAD_001
+	//stm: @CHAIN_STORE_GET_TIPSET_BY_HEIGHT_001
 	cg, err := gen.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
@@ -144,12 +152,12 @@ func TestChainExportImportFull(t *testing.T) {
 	cs := store.NewChainStore(nbs, nbs, datastore.NewMapDatastore(), filcns.Weight, nil)
 	defer cs.Close() //nolint:errcheck
 
-	root, err := cs.Import(buf)
+	root, err := cs.Import(context.TODO(), buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = cs.SetHead(last)
+	err = cs.SetHead(context.Background(), last)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +166,7 @@ func TestChainExportImportFull(t *testing.T) {
 		t.Fatal("imported chain differed from exported chain")
 	}
 
-	sm, err := stmgr.NewStateManager(cs, filcns.NewTipSetExecutor(), nil, filcns.DefaultUpgradeSchedule())
+	sm, err := stmgr.NewStateManager(cs, filcns.NewTipSetExecutor(), nil, filcns.DefaultUpgradeSchedule(), cg.BeaconSchedule())
 	if err != nil {
 		t.Fatal(err)
 	}

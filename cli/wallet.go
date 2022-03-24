@@ -2,12 +2,17 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/filecoin-project/go-state-types/network"
+
+	"github.com/filecoin-project/lotus/build"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
@@ -51,6 +56,8 @@ var walletNew = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
+		afmt := NewAppFmt(cctx.App)
+
 		t := cctx.Args().First()
 		if t == "" {
 			t = "secp256k1"
@@ -61,7 +68,7 @@ var walletNew = &cli.Command{
 			return err
 		}
 
-		fmt.Println(nk.String())
+		afmt.Println(nk.String())
 
 		return nil
 	},
@@ -95,6 +102,8 @@ var walletList = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
+		afmt := NewAppFmt(cctx.App)
+
 		addrs, err := api.WalletList(ctx)
 		if err != nil {
 			return err
@@ -115,7 +124,7 @@ var walletList = &cli.Command{
 
 		for _, addr := range addrs {
 			if cctx.Bool("addr-only") {
-				fmt.Println(addr.String())
+				afmt.Println(addr.String())
 			} else {
 				a, err := api.StateGetActor(ctx, addr, types.EmptyTSK)
 				if err != nil {
@@ -182,6 +191,8 @@ var walletBalance = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
+		afmt := NewAppFmt(cctx.App)
+
 		var addr address.Address
 		if cctx.Args().First() != "" {
 			addr, err = address.NewFromString(cctx.Args().First())
@@ -198,9 +209,9 @@ var walletBalance = &cli.Command{
 		}
 
 		if balance.Equals(types.NewInt(0)) {
-			fmt.Printf("%s (warning: may display 0 if chain sync in progress)\n", types.FIL(balance))
+			afmt.Printf("%s (warning: may display 0 if chain sync in progress)\n", types.FIL(balance))
 		} else {
-			fmt.Printf("%s\n", types.FIL(balance))
+			afmt.Printf("%s\n", types.FIL(balance))
 		}
 
 		return nil
@@ -218,12 +229,14 @@ var walletGetDefault = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
+		afmt := NewAppFmt(cctx.App)
+
 		addr, err := api.WalletDefaultAddress(ctx)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("%s\n", addr.String())
+		afmt.Printf("%s\n", addr.String())
 		return nil
 	},
 }
@@ -265,6 +278,8 @@ var walletExport = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
+		afmt := NewAppFmt(cctx.App)
+
 		if !cctx.Args().Present() {
 			return fmt.Errorf("must specify key to export")
 		}
@@ -284,7 +299,7 @@ var walletExport = &cli.Command{
 			return err
 		}
 
-		fmt.Println(hex.EncodeToString(b))
+		afmt.Println(hex.EncodeToString(b))
 		return nil
 	},
 }
@@ -398,6 +413,8 @@ var walletSign = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
+		afmt := NewAppFmt(cctx.App)
+
 		if !cctx.Args().Present() || cctx.NArg() != 2 {
 			return fmt.Errorf("must specify signing address and message to sign")
 		}
@@ -422,7 +439,7 @@ var walletSign = &cli.Command{
 
 		sigBytes := append([]byte{byte(sig.Type)}, sig.Data...)
 
-		fmt.Println(hex.EncodeToString(sigBytes))
+		afmt.Println(hex.EncodeToString(sigBytes))
 		return nil
 	},
 }
@@ -438,6 +455,8 @@ var walletVerify = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+
+		afmt := NewAppFmt(cctx.App)
 
 		if !cctx.Args().Present() || cctx.NArg() != 3 {
 			return fmt.Errorf("must specify signing address, message, and signature to verify")
@@ -471,10 +490,10 @@ var walletVerify = &cli.Command{
 			return err
 		}
 		if ok {
-			fmt.Println("valid")
+			afmt.Println("valid")
 			return nil
 		}
-		fmt.Println("invalid")
+		afmt.Println("invalid")
 		return NewCliError("CLI Verify called with invalid signature")
 	},
 }
@@ -528,6 +547,11 @@ var walletMarketWithdraw = &cli.Command{
 			Usage:   "Market address to withdraw from (account or miner actor address, defaults to --wallet address)",
 			Aliases: []string{"a"},
 		},
+		&cli.IntFlag{
+			Name:  "confidence",
+			Usage: "number of block confirmations to wait for",
+			Value: int(build.MessageConfidence),
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
@@ -536,6 +560,8 @@ var walletMarketWithdraw = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+
+		afmt := NewAppFmt(cctx.App)
 
 		var wallet address.Address
 		if cctx.String("wallet") != "" {
@@ -612,7 +638,36 @@ var walletMarketWithdraw = &cli.Command{
 			return xerrors.Errorf("fund manager withdraw error: %w", err)
 		}
 
-		fmt.Printf("WithdrawBalance message cid: %s\n", smsg)
+		afmt.Printf("WithdrawBalance message cid: %s\n", smsg)
+
+		// wait for it to get mined into a block
+		wait, err := api.StateWaitMsg(ctx, smsg, uint64(cctx.Int("confidence")))
+		if err != nil {
+			return err
+		}
+
+		// check it executed successfully
+		if wait.Receipt.ExitCode != 0 {
+			afmt.Println(cctx.App.Writer, "withdrawal failed!")
+			return err
+		}
+
+		nv, err := api.StateNetworkVersion(ctx, wait.TipSet)
+		if err != nil {
+			return err
+		}
+
+		if nv >= network.Version14 {
+			var withdrawn abi.TokenAmount
+			if err := withdrawn.UnmarshalCBOR(bytes.NewReader(wait.Receipt.Return)); err != nil {
+				return err
+			}
+
+			afmt.Printf("Successfully withdrew %s \n", types.FIL(withdrawn))
+			if withdrawn.LessThan(amt) {
+				fmt.Printf("Note that this is less than the requested amount of %s \n", types.FIL(amt))
+			}
+		}
 
 		return nil
 	},
@@ -641,6 +696,8 @@ var walletMarketAdd = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+
+		afmt := NewAppFmt(cctx.App)
 
 		// Get amount param
 		if !cctx.Args().Present() {
@@ -683,7 +740,7 @@ var walletMarketAdd = &cli.Command{
 			return xerrors.Errorf("add balance error: %w", err)
 		}
 
-		fmt.Printf("AddBalance message cid: %s\n", smsg)
+		afmt.Printf("AddBalance message cid: %s\n", smsg)
 
 		return nil
 	},

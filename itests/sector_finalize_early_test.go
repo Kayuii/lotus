@@ -1,3 +1,4 @@
+//stm: #integration
 package itests
 
 import (
@@ -18,6 +19,13 @@ import (
 )
 
 func TestDealsWithFinalizeEarly(t *testing.T) {
+	//stm: @CHAIN_SYNCER_LOAD_GENESIS_001, @CHAIN_SYNCER_FETCH_TIPSET_001,
+	//stm: @CHAIN_SYNCER_START_001, @CHAIN_SYNCER_SYNC_001, @BLOCKCHAIN_BEACON_VALIDATE_BLOCK_VALUES_01
+	//stm: @CHAIN_SYNCER_COLLECT_CHAIN_001, @CHAIN_SYNCER_COLLECT_HEADERS_001, @CHAIN_SYNCER_VALIDATE_TIPSET_001
+	//stm: @CHAIN_SYNCER_NEW_PEER_HEAD_001, @CHAIN_SYNCER_VALIDATE_MESSAGE_META_001, @CHAIN_SYNCER_STOP_001
+
+	//stm: @CHAIN_INCOMING_HANDLE_INCOMING_BLOCKS_001, @CHAIN_INCOMING_VALIDATE_BLOCK_PUBSUB_001, @CHAIN_INCOMING_VALIDATE_MESSAGE_PUBSUB_001
+	//stm: @STORAGE_INFO_001
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
@@ -31,7 +39,7 @@ func TestDealsWithFinalizeEarly(t *testing.T) {
 			return func() (sealiface.Config, error) {
 				cf := config.DefaultStorageMiner()
 				cf.Sealing.FinalizeEarly = true
-				return modules.ToSealingConfig(cf), nil
+				return modules.ToSealingConfig(cf.Dealmaking, cf.Sealing), nil
 			}, nil
 		})))) // no mock proofs.
 	ens.InterconnectAll().BeginMining(blockTime)
@@ -42,6 +50,7 @@ func TestDealsWithFinalizeEarly(t *testing.T) {
 	miner.AddStorage(ctx, t, 1000000000, true, false)
 	miner.AddStorage(ctx, t, 1000000000, false, true)
 
+	//stm: @STORAGE_LIST_001
 	sl, err := miner.StorageList(ctx)
 	require.NoError(t, err)
 	for si, d := range sl {
@@ -55,6 +64,7 @@ func TestDealsWithFinalizeEarly(t *testing.T) {
 		dh.RunConcurrentDeals(kit.RunConcurrentDealsOpts{N: 1})
 	})
 
+	//stm: @STORAGE_LIST_001
 	sl, err = miner.StorageList(ctx)
 	require.NoError(t, err)
 	for si, d := range sl {
