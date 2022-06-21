@@ -7,7 +7,7 @@ USAGE:
    lotus-worker [global options] command [command options] [arguments...]
 
 VERSION:
-   1.15.2-dev
+   1.17.1-dev
 
 COMMANDS:
    run         Start lotus worker
@@ -47,7 +47,12 @@ OPTIONS:
    --replica-update              enable replica update (default: true)
    --prove-replica-update2       enable prove replica update 2 (default: true)
    --regen-sector-key            enable regen sector key (default: true)
+   --windowpost                  enable window post (default: false)
+   --winningpost                 enable winning post (default: false)
+   --no-default                  disable all default compute tasks, use the worker for storage/fetching only (default: false)
    --parallel-fetch-limit value  maximum fetch operations to run in parallel (default: 5)
+   --post-parallel-reads value   maximum number of parallel challenge reads (0 = no limit) (default: 128)
+   --post-read-timeout value     time limit for reading PoSt challenges (0 = no limit) (default: 0s)
    --timeout value               used when 'listen' is unspecified. must be a valid duration recognized by golang's time.ParseDuration function (default: "30m")
    --help, -h                    show help (default: false)
    
@@ -169,7 +174,7 @@ NAME:
    lotus-worker tasks enable - Enable a task type
 
 USAGE:
-   lotus-worker tasks enable [command options] [UNS|C2|PC2|PC1|PR2|RU|AP|GSK]
+   lotus-worker tasks enable [command options] [UNS|C2|PC2|PC1|PR2|RU|AP|DC|GSK]
 
 OPTIONS:
    --help, -h  show help (default: false)
@@ -182,7 +187,7 @@ NAME:
    lotus-worker tasks disable - Disable a task type
 
 USAGE:
-   lotus-worker tasks disable [command options] [UNS|C2|PC2|PC1|PR2|RU|AP|GSK]
+   lotus-worker tasks disable [command options] [UNS|C2|PC2|PC1|PR2|RU|AP|DC|GSK]
 
 OPTIONS:
    --help, -h  show help (default: false)

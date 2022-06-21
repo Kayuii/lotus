@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/filecoin-project/lotus/api/v0api"
-
 	"github.com/gbrlsnchs/jwt/v3"
 	"github.com/gorilla/mux"
 	logging "github.com/ipfs/go-log/v2"
@@ -21,6 +19,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
@@ -144,7 +143,7 @@ var runCmd = &cli.Command{
 			Hidden: true,
 		},
 	},
-	Description: "For setup instructions see 'lotus-wallet --help'",
+	Description: "Needs FULLNODE_API_INFO env-var to be set before running (see lotus-wallet --help for setup instructions)",
 	Action: func(cctx *cli.Context) error {
 		log.Info("Starting lotus wallet")
 

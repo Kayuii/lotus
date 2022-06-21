@@ -13,19 +13,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/wallet"
-	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
-	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
+	"github.com/filecoin-project/lotus/chain/wallet/key"
 	"github.com/filecoin-project/lotus/miner"
-	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/multiformats/go-multiaddr"
+	"github.com/filecoin-project/lotus/storage/paths"
+	sealing "github.com/filecoin-project/lotus/storage/pipeline"
+	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
 type MinerSubsystem int
@@ -61,6 +63,8 @@ func (ms MinerSubsystem) All() [MinerSubsystems]bool {
 type TestMiner struct {
 	api.StorageMiner
 
+	BaseAPI api.StorageMiner
+
 	t *testing.T
 
 	// ListenAddr is the address on which an API server is listening, if an
@@ -68,7 +72,7 @@ type TestMiner struct {
 	ListenAddr multiaddr.Multiaddr
 
 	ActorAddr address.Address
-	OwnerKey  *wallet.Key
+	OwnerKey  *key.Key
 	MineOne   func(context.Context, miner.MineReq) error
 	Stop      func(context.Context) error
 
@@ -99,7 +103,7 @@ func (tm *TestMiner) WaitSectorsProving(ctx context.Context, toCheck map[abi.Sec
 			st, err := tm.StorageMiner.SectorsStatus(ctx, n, false)
 			require.NoError(tm.t, err)
 			states[st.State]++
-			if st.State == api.SectorState(sealing.Proving) {
+			if st.State == api.SectorState(sealing.Proving) || st.State == api.SectorState(sealing.Available) {
 				delete(toCheck, n)
 			}
 			if strings.Contains(string(st.State), "Fail") {
@@ -178,8 +182,8 @@ func (tm *TestMiner) AddStorage(ctx context.Context, t *testing.T, weight uint64
 		require.NoError(t, err)
 	}
 
-	cfg := &stores.LocalStorageMeta{
-		ID:       stores.ID(uuid.New().String()),
+	cfg := &paths.LocalStorageMeta{
+		ID:       storiface.ID(uuid.New().String()),
 		Weight:   weight,
 		CanSeal:  seal,
 		CanStore: store,

@@ -16,6 +16,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/go-cid"
+	"github.com/urfave/cli/v2"
+	cbg "github.com/whyrusleeping/cbor-gen"
+	"golang.org/x/xerrors"
+
 	"github.com/filecoin-project/go-address"
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -26,10 +31,6 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
-	cid "github.com/ipfs/go-cid"
-	"github.com/urfave/cli/v2"
-	cbg "github.com/whyrusleeping/cbor-gen"
-	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/lotus/api"
 	lapi "github.com/filecoin-project/lotus/api"
@@ -37,7 +38,7 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/consensus/filcns"
-	types "github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/chain/types"
 )
 
 var ChainCmd = &cli.Command{
@@ -90,7 +91,8 @@ var ChainHeadCmd = &cli.Command{
 }
 
 var ChainGetBlock = &cli.Command{
-	Name:      "getblock",
+	Name:      "get-block",
+	Aliases:   []string{"getblock"},
 	Usage:     "Get a block and print its details",
 	ArgsUsage: "[blockCid]",
 	Flags: []cli.Flag{
@@ -299,6 +301,7 @@ var ChainStatObjCmd = &cli.Command{
 
 var ChainGetMsgCmd = &cli.Command{
 	Name:      "getmessage",
+	Aliases:   []string{"get-message", "get-msg"},
 	Usage:     "Get and print a message by its cid",
 	ArgsUsage: "[messageCid]",
 	Action: func(cctx *cli.Context) error {
@@ -349,6 +352,7 @@ var ChainGetMsgCmd = &cli.Command{
 
 var ChainSetHeadCmd = &cli.Command{
 	Name:      "sethead",
+	Aliases:   []string{"set-head"},
 	Usage:     "manually set the local nodes head tipset (Caution: normally only used for recovery)",
 	ArgsUsage: "[tipsetkey]",
 	Flags: []cli.Flag{

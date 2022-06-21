@@ -15,16 +15,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
-	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/lotus/chain/consensus/filcns"
-
-	"github.com/filecoin-project/lotus/api/v0api"
-
 	"github.com/fatih/color"
-	"github.com/filecoin-project/lotus/chain/actors/builtin"
-
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/multiformats/go-multiaddr"
@@ -35,12 +29,18 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/lotus/api"
 	lapi "github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
+	"github.com/filecoin-project/lotus/chain/actors"
+	"github.com/filecoin-project/lotus/chain/actors/builtin"
+	"github.com/filecoin-project/lotus/chain/consensus/filcns"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -79,6 +79,7 @@ var StateCmd = &cli.Command{
 		StateExecTraceCmd,
 		StateNtwkVersionCmd,
 		StateMinerProvingDeadlineCmd,
+		StateSysActorCIDsCmd,
 	},
 }
 
@@ -1428,6 +1429,7 @@ func jsonReturn(code cid.Cid, method abi.MethodNum, ret []byte) (string, error) 
 
 var StateWaitMsgCmd = &cli.Command{
 	Name:      "wait-msg",
+	Aliases:   []string{"wait-message"},
 	Usage:     "Wait for a message to appear on chain",
 	ArgsUsage: "[messageCid]",
 	Flags: []cli.Flag{
@@ -1470,6 +1472,7 @@ var StateWaitMsgCmd = &cli.Command{
 
 var StateSearchMsgCmd = &cli.Command{
 	Name:      "search-msg",
+	Aliases:   []string{"search-message"},
 	Usage:     "Search to see whether a message has appeared on chain",
 	ArgsUsage: "[messageCid]",
 	Action: func(cctx *cli.Context) error {
@@ -1727,6 +1730,7 @@ var StateCircSupplyCmd = &cli.Command{
 
 var StateSectorCmd = &cli.Command{
 	Name:      "sector",
+	Aliases:   []string{"sector-info"},
 	Usage:     "Get miner sector info",
 	ArgsUsage: "[minerAddress] [sectorNumber]",
 	Action: func(cctx *cli.Context) error {
@@ -1870,5 +1874,73 @@ var StateNtwkVersionCmd = &cli.Command{
 		fmt.Printf("Network Version: %d\n", nv)
 
 		return nil
+	},
+}
+
+var StateSysActorCIDsCmd = &cli.Command{
+	Name:  "actor-cids",
+	Usage: "Returns the built-in actor bundle manifest ID & system actor cids",
+	Flags: []cli.Flag{
+		&cli.UintFlag{
+			Name:  "network-version",
+			Usage: "specify network version",
+			Value: uint(build.NewestNetworkVersion),
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if cctx.Args().Present() {
+			return ShowHelp(cctx, fmt.Errorf("doesn't expect any arguments"))
+		}
+
+		api, closer, err := GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+
+		ctx := ReqContext(cctx)
+
+		ts, err := LoadTipSet(ctx, cctx, api)
+		if err != nil {
+			return err
+		}
+
+		nv, err := api.StateNetworkVersion(ctx, ts.Key())
+		if err != nil {
+			return err
+		}
+
+		if cctx.IsSet("network-version") {
+			nv = network.Version(cctx.Uint64("network-version"))
+		}
+
+		fmt.Printf("Network Version: %d\n", nv)
+
+		actorVersion, err := actors.VersionForNetwork(nv)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Actor Version: %d\n", actorVersion)
+
+		manifestCid, ok := actors.GetManifest(actorVersion)
+		if !ok {
+			return xerrors.Errorf("cannot get manifest CID")
+		}
+		fmt.Printf("Manifest CID: %v\n", manifestCid)
+
+		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+		_, _ = fmt.Fprintln(tw, "\nActor\tCID\t")
+
+		var actorKeys = actors.GetBuiltinActorsKeys()
+		for _, name := range actorKeys {
+			sysActorCID, ok := actors.GetActorCodeID(actorVersion, name)
+			if !ok {
+				return xerrors.Errorf("error getting actor %v code id for actor version %d", name,
+					actorVersion)
+			}
+			_, _ = fmt.Fprintf(tw, "%v\t%v\n", name, sysActorCID)
+
+		}
+		return tw.Flush()
 	},
 }

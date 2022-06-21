@@ -15,7 +15,9 @@
 * [Check](#Check)
   * [CheckProvable](#CheckProvable)
 * [Compute](#Compute)
+  * [ComputeDataCid](#ComputeDataCid)
   * [ComputeProof](#ComputeProof)
+  * [ComputeWindowPoSt](#ComputeWindowPoSt)
 * [Create](#Create)
   * [CreateBackup](#CreateBackup)
 * [Dagstore](#Dagstore)
@@ -25,6 +27,7 @@
   * [DagstoreListShards](#DagstoreListShards)
   * [DagstoreLookupPieces](#DagstoreLookupPieces)
   * [DagstoreRecoverShard](#DagstoreRecoverShard)
+  * [DagstoreRegisterShard](#DagstoreRegisterShard)
 * [Deals](#Deals)
   * [DealsConsiderOfflineRetrievalDeals](#DealsConsiderOfflineRetrievalDeals)
   * [DealsConsiderOfflineStorageDeals](#DealsConsiderOfflineStorageDeals)
@@ -88,6 +91,7 @@
   * [NetLimit](#NetLimit)
   * [NetPeerInfo](#NetPeerInfo)
   * [NetPeers](#NetPeers)
+  * [NetPing](#NetPing)
   * [NetProtectAdd](#NetProtectAdd)
   * [NetProtectList](#NetProtectList)
   * [NetProtectRemove](#NetProtectRemove)
@@ -103,6 +107,7 @@
   * [PledgeSector](#PledgeSector)
 * [Return](#Return)
   * [ReturnAddPiece](#ReturnAddPiece)
+  * [ReturnDataCid](#ReturnDataCid)
   * [ReturnFetch](#ReturnFetch)
   * [ReturnFinalizeReplicaUpdate](#ReturnFinalizeReplicaUpdate)
   * [ReturnFinalizeSector](#ReturnFinalizeSector)
@@ -228,7 +233,7 @@ Response:
 ```json
 {
   "Version": "string value",
-  "APIVersion": 131584,
+  "APIVersion": 131840,
   "BlockDelay": 42
 }
 ```
@@ -345,9 +350,6 @@ Inputs:
       "ProofType": 8
     }
   ],
-  [
-    true
-  ],
   true
 ]
 ```
@@ -361,6 +363,29 @@ Response:
 
 ## Compute
 
+
+### ComputeDataCid
+
+
+Perms: admin
+
+Inputs:
+```json
+[
+  1024,
+  {}
+]
+```
+
+Response:
+```json
+{
+  "Size": 1032,
+  "PieceCID": {
+    "/": "bafy2bzacea3wsdh6y3a36tb3skempjoxqpuyompjbmfeyf34fi3uy6uue42v4"
+  }
+}
+```
 
 ### ComputeProof
 
@@ -382,7 +407,7 @@ Inputs:
   ],
   "Bw==",
   10101,
-  15
+  16
 ]
 ```
 
@@ -392,6 +417,52 @@ Response:
   {
     "PoStProof": 8,
     "ProofBytes": "Ynl0ZSBhcnJheQ=="
+  }
+]
+```
+
+### ComputeWindowPoSt
+
+
+Perms: admin
+
+Inputs:
+```json
+[
+  42,
+  [
+    {
+      "/": "bafy2bzacea3wsdh6y3a36tb3skempjoxqpuyompjbmfeyf34fi3uy6uue42v4"
+    },
+    {
+      "/": "bafy2bzacebp3shtrn43k7g3unredz7fxn4gj533d3o43tqn2p2ipxxhrvchve"
+    }
+  ]
+]
+```
+
+Response:
+```json
+[
+  {
+    "Deadline": 42,
+    "Partitions": [
+      {
+        "Index": 42,
+        "Skipped": [
+          5,
+          1
+        ]
+      }
+    ],
+    "Proofs": [
+      {
+        "PoStProof": 8,
+        "ProofBytes": "Ynl0ZSBhcnJheQ=="
+      }
+    ],
+    "ChainCommitEpoch": 10101,
+    "ChainCommitRand": "Bw=="
   }
 ]
 ```
@@ -569,6 +640,21 @@ Inputs:
 
 Response: `{}`
 
+### DagstoreRegisterShard
+DagstoreRegisterShard registers a shard manually with dagstore with given pieceCID
+
+
+Perms: admin
+
+Inputs:
+```json
+[
+  "string value"
+]
+```
+
+Response: `{}`
+
 ## Deals
 
 
@@ -662,7 +748,7 @@ Response:
       "VerifiedDeal": true,
       "Client": "f01234",
       "Provider": "f01234",
-      "Label": "string value",
+      "Label": "",
       "StartEpoch": 10101,
       "EndEpoch": 10101,
       "StoragePricePerEpoch": "0",
@@ -1113,7 +1199,7 @@ Response:
     "VerifiedDeal": true,
     "Client": "f01234",
     "Provider": "f01234",
-    "Label": "string value",
+    "Label": "",
     "StartEpoch": 10101,
     "EndEpoch": 10101,
     "StoragePricePerEpoch": "0",
@@ -1255,7 +1341,7 @@ Response:
       "VerifiedDeal": true,
       "Client": "f01234",
       "Provider": "f01234",
-      "Label": "string value",
+      "Label": "",
       "StartEpoch": 10101,
       "EndEpoch": 10101,
       "StoragePricePerEpoch": "0",
@@ -1290,7 +1376,7 @@ Response:
       "VerifiedDeal": true,
       "Client": "f01234",
       "Provider": "f01234",
-      "Label": "string value",
+      "Label": "",
       "StartEpoch": 10101,
       "EndEpoch": 10101,
       "StoragePricePerEpoch": "0",
@@ -1411,7 +1497,7 @@ Response:
         "VerifiedDeal": true,
         "Client": "f01234",
         "Provider": "f01234",
-        "Label": "string value",
+        "Label": "",
         "StartEpoch": 10101,
         "EndEpoch": 10101,
         "StoragePricePerEpoch": "0",
@@ -1851,6 +1937,20 @@ Response:
 ]
 ```
 
+### NetPing
+
+
+Perms: read
+
+Inputs:
+```json
+[
+  "12D3KooWGzxzKZYveHXtpG6AsrUJBcWxHBFS2HsEoGTxrMLvKXtf"
+]
+```
+
+Response: `60000000000`
+
 ### NetProtectAdd
 
 
@@ -2136,6 +2236,36 @@ Response:
 
 
 ### ReturnAddPiece
+
+
+Perms: admin
+
+Inputs:
+```json
+[
+  {
+    "Sector": {
+      "Miner": 1000,
+      "Number": 9
+    },
+    "ID": "07070707-0707-0707-0707-070707070707"
+  },
+  {
+    "Size": 1032,
+    "PieceCID": {
+      "/": "bafy2bzacea3wsdh6y3a36tb3skempjoxqpuyompjbmfeyf34fi3uy6uue42v4"
+    }
+  },
+  {
+    "Code": 0,
+    "Message": "string value"
+  }
+]
+```
+
+Response: `{}`
+
+### ReturnDataCid
 storiface.WorkerReturn
 
 
@@ -2652,7 +2782,7 @@ Inputs:
       "VerifiedDeal": true,
       "Client": "f01234",
       "Provider": "f01234",
-      "Label": "string value",
+      "Label": "",
       "StartEpoch": 10101,
       "EndEpoch": 10101,
       "StoragePricePerEpoch": "0",
@@ -3020,7 +3150,7 @@ Response:
           "VerifiedDeal": true,
           "Client": "f01234",
           "Provider": "f01234",
-          "Label": "string value",
+          "Label": "",
           "StartEpoch": 10101,
           "EndEpoch": 10101,
           "StoragePricePerEpoch": "0",
@@ -3047,6 +3177,7 @@ Response:
   "CommitMsg": null,
   "Retries": 42,
   "ToUpgrade": true,
+  "ReplicaUpdateMessage": null,
   "LastErr": "string value",
   "Log": [
     {
@@ -3139,7 +3270,7 @@ Inputs:
 Response: `{}`
 
 ### StorageAttach
-stores.SectorIndex
+SectorIndex
 
 
 Perms: admin
@@ -3275,6 +3406,9 @@ Response:
   {
     "ID": "76f1988b-ef30-4d7e-b3ec-9a627f4ba5a8",
     "URLs": [
+      "string value"
+    ],
+    "BaseURLs": [
       "string value"
     ],
     "Weight": 42,
@@ -3547,6 +3681,190 @@ Response:
           "aGPU 1337"
         ],
         "Resources": {
+          "post/v0/windowproof": {
+            "0": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
+            },
+            "1": {
+              "MinMemory": 8388608,
+              "MaxMemory": 8388608,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
+            },
+            "2": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1610612736,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
+            },
+            "3": {
+              "MinMemory": 32212254720,
+              "MaxMemory": 103079215104,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
+            },
+            "4": {
+              "MinMemory": 64424509440,
+              "MaxMemory": 128849018880,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
+            },
+            "5": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
+            },
+            "6": {
+              "MinMemory": 8388608,
+              "MaxMemory": 8388608,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
+            },
+            "7": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1610612736,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
+            },
+            "8": {
+              "MinMemory": 32212254720,
+              "MaxMemory": 103079215104,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
+            },
+            "9": {
+              "MinMemory": 64424509440,
+              "MaxMemory": 128849018880,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
+            }
+          },
+          "post/v0/winningproof": {
+            "0": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
+            },
+            "1": {
+              "MinMemory": 8388608,
+              "MaxMemory": 8388608,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
+            },
+            "2": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
+            },
+            "3": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1073741824,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
+            },
+            "4": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1073741824,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
+            },
+            "5": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
+            },
+            "6": {
+              "MinMemory": 8388608,
+              "MaxMemory": 8388608,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
+            },
+            "7": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 1,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
+            },
+            "8": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1073741824,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
+            },
+            "9": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1073741824,
+              "GPUUtilization": 1,
+              "MaxParallelism": -1,
+              "MaxParallelismGPU": 6,
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
+            }
+          },
           "seal/v0/addpiece": {
             "0": {
               "MinMemory": 2048,
@@ -3554,7 +3872,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -3562,7 +3881,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -3570,7 +3890,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 4294967296,
@@ -3578,7 +3899,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 8589934592,
@@ -3586,7 +3908,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -3594,7 +3917,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -3602,7 +3926,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -3610,7 +3935,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 4294967296,
@@ -3618,7 +3944,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 8589934592,
@@ -3626,7 +3953,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/commit/1": {
@@ -3636,7 +3964,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -3644,7 +3973,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -3652,7 +3982,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 1073741824,
@@ -3660,7 +3991,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 1073741824,
@@ -3668,7 +4000,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -3676,7 +4009,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -3684,7 +4018,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -3692,7 +4027,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 1073741824,
@@ -3700,7 +4036,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 1073741824,
@@ -3708,7 +4045,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/commit/2": {
@@ -3718,7 +4056,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -3726,7 +4065,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -3734,7 +4074,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10737418240
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 32212254720,
@@ -3742,7 +4083,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 34359738368
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 64424509440,
@@ -3750,7 +4092,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 68719476736
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -3758,7 +4101,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -3766,7 +4110,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -3774,7 +4119,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10737418240
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 32212254720,
@@ -3782,7 +4128,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 34359738368
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 64424509440,
@@ -3790,7 +4137,100 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 68719476736
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
+            }
+          },
+          "seal/v0/datacid": {
+            "0": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
+            },
+            "1": {
+              "MinMemory": 8388608,
+              "MaxMemory": 8388608,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
+            },
+            "2": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1073741824,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
+            },
+            "3": {
+              "MinMemory": 4294967296,
+              "MaxMemory": 4294967296,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
+            },
+            "4": {
+              "MinMemory": 8589934592,
+              "MaxMemory": 8589934592,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
+            },
+            "5": {
+              "MinMemory": 2048,
+              "MaxMemory": 2048,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
+            },
+            "6": {
+              "MinMemory": 8388608,
+              "MaxMemory": 8388608,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
+            },
+            "7": {
+              "MinMemory": 1073741824,
+              "MaxMemory": 1073741824,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
+            },
+            "8": {
+              "MinMemory": 4294967296,
+              "MaxMemory": 4294967296,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
+            },
+            "9": {
+              "MinMemory": 8589934592,
+              "MaxMemory": 8589934592,
+              "GPUUtilization": 0,
+              "MaxParallelism": 1,
+              "MaxParallelismGPU": 0,
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/fetch": {
@@ -3800,7 +4240,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 1048576,
@@ -3808,7 +4249,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1048576,
@@ -3816,7 +4258,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 1048576,
@@ -3824,7 +4267,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 1048576,
@@ -3832,7 +4276,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 1048576,
@@ -3840,7 +4285,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 1048576,
@@ -3848,7 +4294,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1048576,
@@ -3856,7 +4303,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 1048576,
@@ -3864,7 +4312,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 1048576,
@@ -3872,7 +4321,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 0
+              "BaseMinMemory": 0,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/precommit/1": {
@@ -3882,7 +4332,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -3890,7 +4341,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 805306368,
@@ -3898,7 +4350,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1048576
+              "BaseMinMemory": 1048576,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 60129542144,
@@ -3906,7 +4359,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 120259084288,
@@ -3914,7 +4368,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -3922,7 +4377,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -3930,7 +4386,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 805306368,
@@ -3938,7 +4395,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1048576
+              "BaseMinMemory": 1048576,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 60129542144,
@@ -3946,7 +4404,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 120259084288,
@@ -3954,7 +4413,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/precommit/2": {
@@ -3964,7 +4424,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -3972,7 +4433,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -3980,7 +4442,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 16106127360,
@@ -3988,7 +4451,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 32212254720,
@@ -3996,7 +4460,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -4004,7 +4469,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -4012,7 +4478,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -4020,7 +4487,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 16106127360,
@@ -4028,7 +4496,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 32212254720,
@@ -4036,7 +4505,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/provereplicaupdate/1": {
@@ -4046,7 +4516,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -4054,7 +4525,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -4062,7 +4534,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 1073741824,
@@ -4070,7 +4543,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 1073741824,
@@ -4078,7 +4552,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -4086,7 +4561,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -4094,7 +4570,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -4102,7 +4579,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 1073741824,
@@ -4110,7 +4588,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 1073741824,
@@ -4118,7 +4597,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 0,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/provereplicaupdate/2": {
@@ -4128,7 +4608,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -4136,7 +4617,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -4144,7 +4626,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10737418240
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 32212254720,
@@ -4152,7 +4635,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 34359738368
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 64424509440,
@@ -4160,7 +4644,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 68719476736
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -4168,7 +4653,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -4176,7 +4662,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -4184,7 +4671,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10737418240
+              "BaseMinMemory": 10737418240,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 32212254720,
@@ -4192,7 +4680,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 34359738368
+              "BaseMinMemory": 34359738368,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 64424509440,
@@ -4200,7 +4689,8 @@ Response:
               "GPUUtilization": 1,
               "MaxParallelism": -1,
               "MaxParallelismGPU": 6,
-              "BaseMinMemory": 68719476736
+              "BaseMinMemory": 68719476736,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/regensectorkey": {
@@ -4210,7 +4700,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -4218,7 +4709,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -4226,7 +4718,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 4294967296,
@@ -4234,7 +4727,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 8589934592,
@@ -4242,7 +4736,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -4250,7 +4745,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -4258,7 +4754,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -4266,7 +4763,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 4294967296,
@@ -4274,7 +4772,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 8589934592,
@@ -4282,7 +4781,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/replicaupdate": {
@@ -4292,7 +4792,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -4300,7 +4801,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 1073741824,
@@ -4308,7 +4810,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 4294967296,
@@ -4316,7 +4819,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 8589934592,
@@ -4324,7 +4828,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -4332,7 +4837,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -4340,7 +4846,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 1073741824,
@@ -4348,7 +4855,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 4294967296,
@@ -4356,7 +4864,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 8589934592,
@@ -4364,7 +4873,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1073741824
+              "BaseMinMemory": 1073741824,
+              "MaxConcurrent": 0
             }
           },
           "seal/v0/unseal": {
@@ -4374,7 +4884,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "1": {
               "MinMemory": 8388608,
@@ -4382,7 +4893,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "2": {
               "MinMemory": 805306368,
@@ -4390,7 +4902,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1048576
+              "BaseMinMemory": 1048576,
+              "MaxConcurrent": 0
             },
             "3": {
               "MinMemory": 60129542144,
@@ -4398,7 +4911,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             },
             "4": {
               "MinMemory": 120259084288,
@@ -4406,7 +4920,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             },
             "5": {
               "MinMemory": 2048,
@@ -4414,7 +4929,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 2048
+              "BaseMinMemory": 2048,
+              "MaxConcurrent": 0
             },
             "6": {
               "MinMemory": 8388608,
@@ -4422,7 +4938,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 8388608
+              "BaseMinMemory": 8388608,
+              "MaxConcurrent": 0
             },
             "7": {
               "MinMemory": 805306368,
@@ -4430,7 +4947,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 1048576
+              "BaseMinMemory": 1048576,
+              "MaxConcurrent": 0
             },
             "8": {
               "MinMemory": 60129542144,
@@ -4438,7 +4956,8 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             },
             "9": {
               "MinMemory": 120259084288,
@@ -4446,17 +4965,20 @@ Response:
               "GPUUtilization": 0,
               "MaxParallelism": 1,
               "MaxParallelismGPU": 0,
-              "BaseMinMemory": 10485760
+              "BaseMinMemory": 10485760,
+              "MaxConcurrent": 0
             }
           }
         }
       }
     },
+    "Tasks": null,
     "Enabled": true,
     "MemUsedMin": 0,
     "MemUsedMax": 0,
     "GpuUsed": 0,
-    "CpuUse": 0
+    "CpuUse": 0,
+    "TaskCounts": null
   }
 }
 ```

@@ -7,11 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/filecoin-project/lotus/chain/actors/builtin"
-	"github.com/filecoin-project/lotus/metrics"
-
 	block "github.com/ipfs/go-block-format"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
@@ -23,6 +20,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	builtin_types "github.com/filecoin-project/go-state-types/builtin"
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/go-state-types/network"
@@ -31,18 +29,19 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 	"github.com/filecoin-project/lotus/chain/actors/aerrors"
+	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/account"
-	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/reward"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/metrics"
 )
 
 const MaxCallDepth = 4096
 
 var (
 	log            = logging.Logger("vm")
-	actorLog       = logging.Logger("actors")
+	actorLog       = logging.WithSkip(logging.Logger("actors"), 1)
 	gasOnActorExec = newGasCharge("OnActorExec", 0, 0)
 )
 
@@ -227,8 +226,6 @@ type VMOpts struct {
 	Actors         *ActorRegistry
 	Syscalls       SyscallBuilder
 	CircSupplyCalc CircSupplyCalculator
-	// Amount of FIL vested from genesis actors.
-	FilVested      abi.TokenAmount
 	NetworkVersion network.Version
 	BaseFee        abi.TokenAmount
 	LookbackState  LookbackStateGetter
@@ -283,7 +280,7 @@ func (vm *LegacyVM) send(ctx context.Context, msg *types.Message, parent *Runtim
 	st := vm.cstate
 
 	rt := vm.makeRuntime(ctx, msg, parent)
-	if EnableGasTracing {
+	if EnableDetailedTracing {
 		rt.lastGasChargeTime = start
 		if parent != nil {
 			rt.lastGasChargeTime = parent.lastGasChargeTime
@@ -625,7 +622,7 @@ func (vm *LegacyVM) ShouldBurn(ctx context.Context, st *state.StateTree, msg *ty
 		// Check to see if we should burn funds. We avoid burning on successful
 		// window post. This won't catch _indirect_ window post calls, but this
 		// is the best we can get for now.
-		if vm.blockHeight > build.UpgradeClausHeight && errcode == exitcode.Ok && msg.Method == miner.Methods.SubmitWindowedPoSt {
+		if vm.blockHeight > build.UpgradeClausHeight && errcode == exitcode.Ok && msg.Method == builtin_types.MethodsMiner.SubmitWindowedPoSt {
 			// Ok, we've checked the _method_, but we still need to check
 			// the target actor. It would be nice if we could just look at
 			// the trace, but I'm not sure if that's safe?

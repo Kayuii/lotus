@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	lcli "github.com/filecoin-project/lotus/cli"
-	"github.com/urfave/cli/v2"
 )
 
 var mpoolCmd = &cli.Command{
@@ -20,7 +21,8 @@ var mpoolCmd = &cli.Command{
 }
 
 var minerSelectMsgsCmd = &cli.Command{
-	Name: "miner-select-msgs",
+	Name:    "miner-select-messages",
+	Aliases: []string{"miner-select-msgs"},
 	Flags: []cli.Flag{
 		&cli.Float64Flag{
 			Name:  "ticket-quality",

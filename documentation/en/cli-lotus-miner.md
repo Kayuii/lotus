@@ -7,7 +7,7 @@ USAGE:
    lotus-miner [global options] command [command options] [arguments...]
 
 VERSION:
-   1.15.2-dev
+   1.17.1-dev
 
 COMMANDS:
    init     Initialize a lotus miner repo
@@ -236,35 +236,24 @@ USAGE:
    lotus-miner actor command [command options] [arguments...]
 
 COMMANDS:
-   set-addrs              set addresses that your miner can be publicly dialed on
-   withdraw               withdraw available balance
-   repay-debt             pay down a miner's debt
-   set-peer-id            set the peer id of your miner
-   set-owner              Set owner address (this command should be invoked twice, first with the old owner as the senderAddress, and then with the new owner)
-   control                Manage control addresses
-   propose-change-worker  Propose a worker address change
-   confirm-change-worker  Confirm a worker address change
-   compact-allocated      compact allocated sectors bitfield
-   help, h                Shows a list of commands or help for one command
+   set-addresses, set-addrs  set addresses that your miner can be publicly dialed on
+   withdraw                  withdraw available balance
+   repay-debt                pay down a miner's debt
+   set-peer-id               set the peer id of your miner
+   set-owner                 Set owner address (this command should be invoked twice, first with the old owner as the senderAddress, and then with the new owner)
+   control                   Manage control addresses
+   propose-change-worker     Propose a worker address change
+   confirm-change-worker     Confirm a worker address change
+   compact-allocated         compact allocated sectors bitfield
+   help, h                   Shows a list of commands or help for one command
 
 OPTIONS:
    --help, -h  show help (default: false)
    
 ```
 
-### lotus-miner actor set-addrs
+#### lotus-miner actor set-addresses, set-addrs
 ```
-NAME:
-   lotus-miner actor set-addrs - set addresses that your miner can be publicly dialed on
-
-USAGE:
-   lotus-miner actor set-addrs [command options] [arguments...]
-
-OPTIONS:
-   --gas-limit value  set gas limit (default: 0)
-   --unset            unset address (default: false)
-   --help, -h         show help (default: false)
-   
 ```
 
 ### lotus-miner actor withdraw
@@ -1046,6 +1035,7 @@ USAGE:
 
 COMMANDS:
    list-shards       List all shards known to the dagstore, with their current status
+   register-shard    Register a shard
    initialize-shard  Initialize the specified shard
    recover-shard     Attempt to recover a shard in errored state
    initialize-all    Initialize all uninitialized shards, streaming results as they're produced; only shards for unsealed pieces are initialized by default
@@ -1065,6 +1055,20 @@ NAME:
 
 USAGE:
    lotus-miner dagstore list-shards [command options] [arguments...]
+
+OPTIONS:
+   --color     use color in display output (default: depends on output being a TTY)
+   --help, -h  show help (default: false)
+   
+```
+
+### lotus-miner dagstore register-shard
+```
+NAME:
+   lotus-miner dagstore register-shard - Register a shard
+
+USAGE:
+   lotus-miner dagstore register-shard [command options] [key]
 
 OPTIONS:
    --color     use color in display output (default: depends on output being a TTY)
@@ -1199,21 +1203,22 @@ USAGE:
    lotus-miner net command [command options] [arguments...]
 
 COMMANDS:
-   peers           Print peers
-   connect         Connect to a peer
-   listen          List listen addresses
-   id              Get node identity
-   findpeer        Find the addresses of a given peerID
-   scores          Print peers' pubsub scores
-   reachability    Print information about reachability from the internet
-   bandwidth       Print bandwidth usage information
-   block           Manage network connection gating rules
-   stat            Report resource usage for a scope
-   limit           Get or set resource limits for a scope
-   protect         Add one or more peer IDs to the list of protected peer connections
-   unprotect       Remove one or more peer IDs from the list of protected peer connections.
-   list-protected  List the peer IDs with protected connection.
-   help, h         Shows a list of commands or help for one command
+   peers                Print peers
+   ping                 Ping peers
+   connect              Connect to a peer
+   listen               List listen addresses
+   id                   Get node identity
+   find-peer, findpeer  Find the addresses of a given peerID
+   scores               Print peers' pubsub scores
+   reachability         Print information about reachability from the internet
+   bandwidth            Print bandwidth usage information
+   block                Manage network connection gating rules
+   stat                 Report resource usage for a scope
+   limit                Get or set resource limits for a scope
+   protect              Add one or more peer IDs to the list of protected peer connections
+   unprotect            Remove one or more peer IDs from the list of protected peer connections.
+   list-protected       List the peer IDs with protected connection.
+   help, h              Shows a list of commands or help for one command
 
 OPTIONS:
    --help, -h  show help (default: false)
@@ -1232,6 +1237,21 @@ OPTIONS:
    --agent, -a     Print agent name (default: false)
    --extended, -x  Print extended peer information in json (default: false)
    --help, -h      show help (default: false)
+   
+```
+
+### lotus-miner net ping
+```
+NAME:
+   lotus-miner net ping - Ping peers
+
+USAGE:
+   lotus-miner net ping [command options] [arguments...]
+
+OPTIONS:
+   --count value, -c value     specify the number of times it should ping (default: 10)
+   --interval value, -i value  minimum time between pings (default: 1s)
+   --help, -h                  show help (default: false)
    
 ```
 
@@ -1274,17 +1294,8 @@ OPTIONS:
    
 ```
 
-### lotus-miner net findpeer
+#### lotus-miner net find-peer, findpeer
 ```
-NAME:
-   lotus-miner net findpeer - Find the addresses of a given peerID
-
-USAGE:
-   lotus-miner net findpeer [command options] [peerId]
-
-OPTIONS:
-   --help, -h  show help (default: false)
-   
 ```
 
 ### lotus-miner net scores
@@ -1497,6 +1508,7 @@ DESCRIPTION:
      - all           -- reports the resource usage for all currently active scopes.
 
 OPTIONS:
+   --json      (default: false)
    --help, -h  show help (default: false)
    
 ```
@@ -1656,6 +1668,7 @@ COMMANDS:
    refs                  List References to sectors
    update-state          ADVANCED: manually update the state of a sector, this may aid in error recovery
    pledge                store random data in a sector
+   precommits            Print on-chain precommit info
    check-expire          Inspect expiring sectors
    expired               Get or cleanup expired sectors
    renew                 Renew expiring sectors while not exceeding each sector's max life
@@ -1669,6 +1682,7 @@ COMMANDS:
    get-cc-collateral     Get the collateral required to pledge a committed capacity sector
    batching              manage batch sector operations
    match-pending-pieces  force a refreshed match of pending pieces to open sectors without manually waiting for more deals
+   compact-partitions    removes dead sectors from partitions and reduces the number of partitions used if possible
    help, h               Shows a list of commands or help for one command
 
 OPTIONS:
@@ -1748,6 +1762,19 @@ NAME:
 
 USAGE:
    lotus-miner sectors pledge [command options] [arguments...]
+
+OPTIONS:
+   --help, -h  show help (default: false)
+   
+```
+
+### lotus-miner sectors precommits
+```
+NAME:
+   lotus-miner sectors precommits - Print on-chain precommit info
+
+USAGE:
+   lotus-miner sectors precommits [command options] [arguments...]
 
 OPTIONS:
    --help, -h  show help (default: false)
@@ -2010,6 +2037,23 @@ OPTIONS:
    
 ```
 
+### lotus-miner sectors compact-partitions
+```
+NAME:
+   lotus-miner sectors compact-partitions - removes dead sectors from partitions and reduces the number of partitions used if possible
+
+USAGE:
+   lotus-miner sectors compact-partitions [command options] [arguments...]
+
+OPTIONS:
+   --deadline value    the deadline to compact the partitions in (default: 0)
+   --partitions value  list of partitions to compact sectors in
+   --really-do-it      Actually send transaction performing the action (default: false)
+   --actor value       Specify the address of the miner to run this command
+   --help, -h          show help (default: false)
+   
+```
+
 ## lotus-miner proving
 ```
 NAME:
@@ -2024,6 +2068,8 @@ COMMANDS:
    deadline   View the current proving period deadline information by its index 
    faults     View the currently known proving faulty sectors information
    check      Check sectors provable
+   workers    list workers
+   compute    
    help, h    Shows a list of commands or help for one command
 
 OPTIONS:
@@ -2095,8 +2141,44 @@ OPTIONS:
    --only-bad          print only bad sectors (default: false)
    --slow              run slower checks (default: false)
    --storage-id value  filter sectors by storage path (path id)
+   --faulty            only check faulty sectors (default: false)
    --help, -h          show help (default: false)
    
+```
+
+### lotus-miner proving workers
+```
+NAME:
+   lotus-miner proving workers - list workers
+
+USAGE:
+   lotus-miner proving workers [command options] [arguments...]
+
+OPTIONS:
+   --color     use color in display output (default: depends on output being a TTY)
+   --help, -h  show help (default: false)
+   
+```
+
+### lotus-miner proving compute
+```
+NAME:
+   lotus-miner proving compute - A new cli application
+
+USAGE:
+   lotus-miner proving compute command [command options] [arguments...]
+
+COMMANDS:
+   windowed-post, window-post  Compute WindowPoSt for a specific deadline
+   help, h                     Shows a list of commands or help for one command
+
+OPTIONS:
+   --help, -h  show help (default: false)
+   
+```
+
+##### lotus-miner proving compute windowed-post, window-post
+```
 ```
 
 ## lotus-miner storage
@@ -2251,6 +2333,7 @@ COMMANDS:
    workers     list workers
    sched-diag  Dump internal scheduler state
    abort       Abort a running job
+   data-cid    Compute data CID using workers
    help, h     Shows a list of commands or help for one command
 
 OPTIONS:
@@ -2311,5 +2394,19 @@ USAGE:
 
 OPTIONS:
    --help, -h  show help (default: false)
+   
+```
+
+### lotus-miner sealing data-cid
+```
+NAME:
+   lotus-miner sealing data-cid - Compute data CID using workers
+
+USAGE:
+   lotus-miner sealing data-cid [command options] [file/url] <padded piece size>
+
+OPTIONS:
+   --file-size value  real file size (default: 0)
+   --help, -h         show help (default: false)
    
 ```

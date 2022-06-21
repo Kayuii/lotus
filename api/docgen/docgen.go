@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-bitfield"
 	"github.com/google/uuid"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-graphsync"
+	textselector "github.com/ipld/go-ipld-selector-text-lite"
 	"github.com/libp2p/go-libp2p-core/metrics"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -24,12 +24,12 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
 
+	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-bitfield"
 	datatransfer "github.com/filecoin-project/go-data-transfer"
-	filestore "github.com/filecoin-project/go-fil-markets/filestore"
+	"github.com/filecoin-project/go-fil-markets/filestore"
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
 	"github.com/filecoin-project/go-jsonrpc/auth"
-	textselector "github.com/ipld/go-ipld-selector-text-lite"
-
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/exitcode"
@@ -39,12 +39,11 @@ import (
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/lotus/extern/sector-storage/sealtasks"
-	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
-	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
-	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/filecoin-project/lotus/node/repo/imports"
+	sealing "github.com/filecoin-project/lotus/storage/pipeline"
+	"github.com/filecoin-project/lotus/storage/sealer/sealtasks"
+	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
 var ExampleValues = map[reflect.Type]interface{}{
@@ -95,6 +94,9 @@ func init() {
 	textSelExample := textselector.Expression("Links/21/Hash/Links/42/Hash")
 	apiSelExample := api.Selector("Links/21/Hash/Links/42/Hash")
 	clientEvent := retrievalmarket.ClientEventDealAccepted
+
+	block := blocks.Block(&blocks.BasicBlock{})
+	ExampleValues[reflect.TypeOf(&block).Elem()] = block
 
 	addExample(bitfield.NewFromSet([]uint64{5}))
 	addExample(abi.RegisteredSealProof_StackedDrg32GiBV1_1)
@@ -147,6 +149,10 @@ func init() {
 	addExample(map[string]api.MarketDeal{
 		"t026363": ExampleValue("init", reflect.TypeOf(api.MarketDeal{}), nil).(api.MarketDeal),
 	})
+	addExample(map[string]*api.MarketDeal{
+		"t026363": ExampleValue("init", reflect.TypeOf(&api.MarketDeal{}), nil).(*api.MarketDeal),
+	})
+
 	addExample(map[string]api.MarketBalance{
 		"t026363": ExampleValue("init", reflect.TypeOf(api.MarketBalance{}), nil).(api.MarketBalance),
 	})
@@ -199,10 +205,10 @@ func init() {
 		},
 	})
 	addExample(api.SectorState(sealing.Proving))
-	addExample(stores.ID("76f1988b-ef30-4d7e-b3ec-9a627f4ba5a8"))
+	addExample(storiface.ID("76f1988b-ef30-4d7e-b3ec-9a627f4ba5a8"))
 	addExample(storiface.FTUnsealed)
 	addExample(storiface.PathSealing)
-	addExample(map[stores.ID][]stores.Decl{
+	addExample(map[storiface.ID][]storiface.Decl{
 		"76f1988b-ef30-4d7e-b3ec-9a627f4ba5a8": {
 			{
 				SectorID:       abi.SectorID{Miner: 1000, Number: 100},
@@ -210,7 +216,7 @@ func init() {
 			},
 		},
 	})
-	addExample(map[stores.ID]string{
+	addExample(map[storiface.ID]string{
 		"76f1988b-ef30-4d7e-b3ec-9a627f4ba5a8": "/data/path",
 	})
 	addExample(map[uuid.UUID][]storiface.WorkerJob{
@@ -351,6 +357,10 @@ func GetAPIType(name, pkg string) (i interface{}, t reflect.Type, permStruct []r
 			i = &api.WorkerStruct{}
 			t = reflect.TypeOf(new(struct{ api.Worker })).Elem()
 			permStruct = append(permStruct, reflect.TypeOf(api.WorkerStruct{}.Internal))
+		case "Gateway":
+			i = &api.GatewayStruct{}
+			t = reflect.TypeOf(new(struct{ api.Gateway })).Elem()
+			permStruct = append(permStruct, reflect.TypeOf(api.GatewayStruct{}.Internal))
 		default:
 			panic("unknown type")
 		}

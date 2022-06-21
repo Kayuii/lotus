@@ -12,22 +12,20 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/mattn/go-isatty"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
-
-	cbor "github.com/ipfs/go-ipld-cbor"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/lotus/api/v0api"
-	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/adt"
@@ -36,6 +34,8 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	lcli "github.com/filecoin-project/lotus/cli"
 	"github.com/filecoin-project/lotus/journal/alerting"
+	sealing "github.com/filecoin-project/lotus/storage/pipeline"
+	"github.com/filecoin-project/lotus/storage/sealer/sealtasks"
 )
 
 var infoCmd = &cli.Command{
@@ -343,6 +343,41 @@ func handleMiningInfo(ctx context.Context, cctx *cli.Context, fullapi v0api.Full
 		}
 	}
 
+	{
+		fmt.Println()
+
+		ws, err := nodeApi.WorkerStats(ctx)
+		if err != nil {
+			return xerrors.Errorf("getting worker stats: %w", err)
+		}
+
+		workersByType := map[string]int{
+			sealtasks.WorkerSealing:     0,
+			sealtasks.WorkerWindowPoSt:  0,
+			sealtasks.WorkerWinningPoSt: 0,
+		}
+
+	wloop:
+		for _, st := range ws {
+			if !st.Enabled {
+				continue
+			}
+
+			for _, task := range st.Tasks {
+				if task.WorkerType() != sealtasks.WorkerSealing {
+					workersByType[task.WorkerType()]++
+					continue wloop
+				}
+			}
+			workersByType[sealtasks.WorkerSealing]++
+		}
+
+		fmt.Printf("Workers: Seal(%d) WdPoSt(%d) WinPoSt(%d)\n",
+			workersByType[sealtasks.WorkerSealing],
+			workersByType[sealtasks.WorkerWindowPoSt],
+			workersByType[sealtasks.WorkerWinningPoSt])
+	}
+
 	if cctx.IsSet("blocks") {
 		fmt.Println("Produced newest blocks:")
 		err = producedBlocks(ctx, cctx.Int("blocks"), maddr, fullapi)
@@ -350,9 +385,6 @@ func handleMiningInfo(ctx context.Context, cctx *cli.Context, fullapi v0api.Full
 			return err
 		}
 	}
-	// TODO: grab actr state / info
-	//  * Sealed sectors (count / bytes)
-	//  * Power
 
 	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/lotus/chain/types"
-	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
+	"github.com/filecoin-project/lotus/storage/sealer"
 )
 
 // // NOTE: ONLY PUT STRUCT DEFINITIONS IN THIS FILE
@@ -53,8 +53,9 @@ type StorageMiner struct {
 	Subsystems    MinerSubsystemConfig
 	Dealmaking    DealmakingConfig
 	IndexProvider IndexProviderConfig
+	Proving       ProvingConfig
 	Sealing       SealingConfig
-	Storage       sectorstorage.SealerConfig
+	Storage       SealerConfig
 	Fees          MinerFeeConfig
 	Addresses     MinerAddressConfig
 	DAGStore      DAGStoreConfig
@@ -128,10 +129,6 @@ type DealmakingConfig struct {
 	// This includes the time the deal will need to get transferred and published
 	// before being assigned to a sector
 	ExpectedSealDuration Duration
-	// Whether new sectors are created to pack incoming deals
-	// When this is set to false no new sectors will be created for sealing incoming deals
-	// This is useful for forcing all deals to be assigned as snap deals to sectors marked for upgrade
-	MakeNewSectorForDeals bool
 	// Maximum amount of time proposed deal StartEpoch can be in future
 	MaxDealStartDelay Duration
 	// When a deal is ready to publish, the amount of time to wait for more
@@ -173,7 +170,7 @@ type DealmakingConfig struct {
 type IndexProviderConfig struct {
 
 	// Enable set whether to enable indexing announcement to the network and expose endpoints that
-	// allow indexer nodes to process announcements. Disabled by default.
+	// allow indexer nodes to process announcements. Enabled by default.
 	Enable bool
 
 	// EntriesCacheCapacity sets the maximum capacity to use for caching the indexing advertisement
@@ -190,7 +187,9 @@ type IndexProviderConfig struct {
 	EntriesChunkSize int
 
 	// TopicName sets the topic name on which the changes to the advertised content are announced.
-	// Defaults to '/indexer/ingest/mainnet' if not specified.
+	// If not explicitly specified, the topic name is automatically inferred from the network name
+	// in following format: '/indexer/ingest/<network-name>'
+	// Defaults to empty, which implies the topic name is inferred from network name.
 	TopicName string
 
 	// PurgeCacheOnStart sets whether to clear any cached entries chunks when the provider engine
@@ -220,6 +219,13 @@ type RetrievalPricingDefault struct {
 	VerifiedDealsFreeTransfer bool
 }
 
+type ProvingConfig struct {
+	// Maximum number of sector checks to run in parallel. (0 = unlimited)
+	ParallelCheckLimit int
+
+	// todo disable builtin post
+}
+
 type SealingConfig struct {
 	// Upper bound on how many sectors can be waiting for more deals to be packed in it before it begins sealing at any given time.
 	// If the miner is accepting multiple deals in parallel, up to MaxWaitDealsSectors of new sectors will be created.
@@ -228,11 +234,20 @@ type SealingConfig struct {
 	// 0 = no limit
 	MaxWaitDealsSectors uint64
 
-	// Upper bound on how many sectors can be sealing at the same time when creating new CC sectors (0 = unlimited)
+	// Upper bound on how many sectors can be sealing+upgrading at the same time when creating new CC sectors (0 = unlimited)
 	MaxSealingSectors uint64
 
-	// Upper bound on how many sectors can be sealing at the same time when creating new sectors with deals (0 = unlimited)
+	// Upper bound on how many sectors can be sealing+upgrading at the same time when creating new sectors with deals (0 = unlimited)
 	MaxSealingSectorsForDeals uint64
+
+	// Prefer creating new sectors even if there are sectors Available for upgrading.
+	// This setting combined with MaxUpgradingSectors set to a value higher than MaxSealingSectorsForDeals makes it
+	// possible to use fast sector upgrades to handle high volumes of storage deals, while still using the simple sealing
+	// flow when the volume of storage deals is lower.
+	PreferNewSectorsForDeals bool
+
+	// Upper bound on how many sectors can be sealing+upgrading at the same time when upgrading CC sectors with deals (0 = MaxSealingSectorsForDeals)
+	MaxUpgradingSectors uint64
 
 	// CommittedCapacitySectorLifetime is the duration a Committed Capacity (CC) sector will
 	// live before it must be extended or converted into sector containing deals before it is
@@ -249,6 +264,11 @@ type SealingConfig struct {
 
 	// Run sector finalization before submitting sector proof to the chain
 	FinalizeEarly bool
+
+	// Whether new sectors are created to pack incoming deals
+	// When this is set to false no new sectors will be created for sealing incoming deals
+	// This is useful for forcing all deals to be assigned as snap deals to sectors marked for upgrade
+	MakeNewSectorForDeals bool
 
 	// After sealing CC sectors, make them available for upgrading with deals
 	MakeCCSectorsAvailable bool
@@ -271,8 +291,9 @@ type SealingConfig struct {
 
 	// enable / disable commit aggregation (takes effect after nv13)
 	AggregateCommits bool
-	// maximum batched commit size - batches will be sent immediately above this size
+	// minimum batched commit size - batches above this size will eventually be sent on a timeout
 	MinCommitBatch int
+	// maximum batched commit size - batches will be sent immediately above this size
 	MaxCommitBatch int
 	// how long to wait before submitting a batch after crossing the minimum batch size
 	CommitBatchWait Duration
@@ -295,6 +316,43 @@ type SealingConfig struct {
 	// todo TargetSealingSectors uint64
 
 	// todo TargetSectors - stop auto-pleding new sectors after this many sectors are sealed, default CC upgrade for deals sectors if above
+}
+
+type SealerConfig struct {
+	ParallelFetchLimit int
+
+	// Local worker config
+	AllowAddPiece            bool
+	AllowPreCommit1          bool
+	AllowPreCommit2          bool
+	AllowCommit              bool
+	AllowUnseal              bool
+	AllowReplicaUpdate       bool
+	AllowProveReplicaUpdate2 bool
+	AllowRegenSectorKey      bool
+
+	// Assigner specifies the worker assigner to use when scheduling tasks.
+	// "utilization" (default) - assign tasks to workers with lowest utilization.
+	// "spread" - assign tasks to as many distinct workers as possible.
+	Assigner string
+
+	// DisallowRemoteFinalize when set to true will force all Finalize tasks to
+	// run on workers with local access to both long-term storage and the sealing
+	// path containing the sector.
+	// --
+	// WARNING: Only set this if all workers have access to long-term storage
+	// paths. If this flag is enabled, and there are workers without long-term
+	// storage access, sectors will not be moved from them, and Finalize tasks
+	// will appear to be stuck.
+	// --
+	// If you see stuck Finalize tasks after enabling this setting, check
+	// 'lotus-miner sealing sched-diag' and 'lotus-miner storage find [sector num]'
+	DisallowRemoteFinalize bool
+
+	// ResourceFiltering instructs the system which resource filtering strategy
+	// to use when evaluating tasks against this worker. An empty value defaults
+	// to "hardware".
+	ResourceFiltering sealer.ResourceFilteringStrategy
 }
 
 type BatchFeeConfig struct {

@@ -3,25 +3,38 @@ package v0api
 import (
 	"context"
 
-	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
-	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/go-state-types/crypto"
-	marketevents "github.com/filecoin-project/lotus/markets/loggers"
-
-	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"golang.org/x/xerrors"
 
-	"github.com/ipfs/go-cid"
-
+	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
+	"github.com/filecoin-project/go-state-types/crypto"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/v1api"
+	"github.com/filecoin-project/lotus/chain/types"
+	marketevents "github.com/filecoin-project/lotus/markets/loggers"
 )
 
 type WrapperV1Full struct {
 	v1api.FullNode
+}
+
+func (w *WrapperV1Full) StateSectorPreCommitInfo(ctx context.Context, maddr address.Address, s abi.SectorNumber, tsk types.TipSetKey) (miner.SectorPreCommitOnChainInfo, error) {
+	pi, err := w.FullNode.StateSectorPreCommitInfo(ctx, maddr, s, tsk)
+	if err != nil {
+		return miner.SectorPreCommitOnChainInfo{}, err
+	}
+	if pi == nil {
+		return miner.SectorPreCommitOnChainInfo{}, xerrors.Errorf("precommit info does not exist")
+	}
+
+	return *pi, nil
 }
 
 func (w *WrapperV1Full) StateSearchMsg(ctx context.Context, msg cid.Cid) (*api.MsgLookup, error) {
@@ -339,6 +352,18 @@ func (w *WrapperV1Full) clientRetrieve(ctx context.Context, order RetrievalOrder
 
 func (w *WrapperV1Full) PaychGet(ctx context.Context, from, to address.Address, amt types.BigInt) (*api.ChannelInfo, error) {
 	return w.FullNode.PaychFund(ctx, from, to, amt)
+}
+
+func (w *WrapperV1Full) ClientQueryAsk(ctx context.Context, p peer.ID, miner address.Address) (*storagemarket.StorageAsk, error) {
+	a, err := w.FullNode.ClientQueryAsk(ctx, p, miner)
+	if err != nil {
+		return nil, err
+	}
+	return a.Response, nil
+}
+
+func (w *WrapperV1Full) BeaconGetEntry(ctx context.Context, epoch abi.ChainEpoch) (*types.BeaconEntry, error) {
+	return w.StateGetBeaconEntry(ctx, epoch)
 }
 
 var _ FullNode = &WrapperV1Full{}

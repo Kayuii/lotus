@@ -29,6 +29,7 @@
   * [ChainHasObj](#ChainHasObj)
   * [ChainHead](#ChainHead)
   * [ChainNotify](#ChainNotify)
+  * [ChainPutObj](#ChainPutObj)
   * [ChainReadObj](#ChainReadObj)
   * [ChainSetHead](#ChainSetHead)
   * [ChainStatObj](#ChainStatObj)
@@ -131,6 +132,7 @@
   * [NetLimit](#NetLimit)
   * [NetPeerInfo](#NetPeerInfo)
   * [NetPeers](#NetPeers)
+  * [NetPing](#NetPing)
   * [NetProtectAdd](#NetProtectAdd)
   * [NetProtectList](#NetProtectList)
   * [NetProtectRemove](#NetProtectRemove)
@@ -164,6 +166,7 @@
   * [StateDealProviderCollateralBounds](#StateDealProviderCollateralBounds)
   * [StateDecodeParams](#StateDecodeParams)
   * [StateGetActor](#StateGetActor)
+  * [StateGetNetworkParams](#StateGetNetworkParams)
   * [StateGetRandomnessFromBeacon](#StateGetRandomnessFromBeacon)
   * [StateGetRandomnessFromTickets](#StateGetRandomnessFromTickets)
   * [StateGetReceipt](#StateGetReceipt)
@@ -289,7 +292,7 @@ Response:
 ```json
 {
   "Version": "string value",
-  "APIVersion": 131584,
+  "APIVersion": 131840,
   "BlockDelay": 42
 }
 ```
@@ -968,6 +971,21 @@ Response:
   }
 ]
 ```
+
+### ChainPutObj
+ChainPutObj puts and object into the blockstore
+
+
+Perms: 
+
+Inputs:
+```json
+[
+  {}
+]
+```
+
+Response: `{}`
 
 ### ChainReadObj
 ChainReadObj reads ipld nodes referenced by the specified CID from chain
@@ -3908,6 +3926,20 @@ Response:
 ]
 ```
 
+### NetPing
+
+
+Perms: read
+
+Inputs:
+```json
+[
+  "12D3KooWGzxzKZYveHXtpG6AsrUJBcWxHBFS2HsEoGTxrMLvKXtf"
+]
+```
+
+Response: `60000000000`
+
 ### NetProtectAdd
 
 
@@ -4258,7 +4290,7 @@ Response:
       "ChannelAddr": "f01234",
       "TimeLockMin": 10101,
       "TimeLockMax": 10101,
-      "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+      "SecretHash": "Ynl0ZSBhcnJheQ==",
       "Extra": {
         "Actor": "f01234",
         "Method": 1,
@@ -4335,7 +4367,7 @@ Inputs:
     "ChannelAddr": "f01234",
     "TimeLockMin": 10101,
     "TimeLockMax": 10101,
-    "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+    "SecretHash": "Ynl0ZSBhcnJheQ==",
     "Extra": {
       "Actor": "f01234",
       "Method": 1,
@@ -4376,7 +4408,7 @@ Inputs:
     "ChannelAddr": "f01234",
     "TimeLockMin": 10101,
     "TimeLockMax": 10101,
-    "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+    "SecretHash": "Ynl0ZSBhcnJheQ==",
     "Extra": {
       "Actor": "f01234",
       "Method": 1,
@@ -4417,7 +4449,7 @@ Inputs:
     "ChannelAddr": "f01234",
     "TimeLockMin": 10101,
     "TimeLockMax": 10101,
-    "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+    "SecretHash": "Ynl0ZSBhcnJheQ==",
     "Extra": {
       "Actor": "f01234",
       "Method": 1,
@@ -4464,7 +4496,7 @@ Response:
     "ChannelAddr": "f01234",
     "TimeLockMin": 10101,
     "TimeLockMax": 10101,
-    "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+    "SecretHash": "Ynl0ZSBhcnJheQ==",
     "Extra": {
       "Actor": "f01234",
       "Method": 1,
@@ -4508,7 +4540,7 @@ Response:
     "ChannelAddr": "f01234",
     "TimeLockMin": 10101,
     "TimeLockMax": 10101,
-    "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+    "SecretHash": "Ynl0ZSBhcnJheQ==",
     "Extra": {
       "Actor": "f01234",
       "Method": 1,
@@ -4545,7 +4577,7 @@ Inputs:
     "ChannelAddr": "f01234",
     "TimeLockMin": 10101,
     "TimeLockMax": 10101,
-    "SecretPreimage": "Ynl0ZSBhcnJheQ==",
+    "SecretHash": "Ynl0ZSBhcnJheQ==",
     "Extra": {
       "Actor": "f01234",
       "Method": 1,
@@ -5170,6 +5202,49 @@ Response:
 }
 ```
 
+### StateGetNetworkParams
+StateGetNetworkParams return current network params
+
+
+Perms: read
+
+Inputs: `null`
+
+Response:
+```json
+{
+  "NetworkName": "lotus",
+  "BlockDelaySecs": 42,
+  "ConsensusMinerMinPower": "0",
+  "SupportedProofTypes": [
+    8
+  ],
+  "PreCommitChallengeDelay": 10101,
+  "ForkUpgradeParams": {
+    "UpgradeSmokeHeight": 10101,
+    "UpgradeBreezeHeight": 10101,
+    "UpgradeIgnitionHeight": 10101,
+    "UpgradeLiftoffHeight": 10101,
+    "UpgradeAssemblyHeight": 10101,
+    "UpgradeRefuelHeight": 10101,
+    "UpgradeTapeHeight": 10101,
+    "UpgradeKumquatHeight": 10101,
+    "UpgradePriceListOopsHeight": 10101,
+    "BreezeGasTampingDuration": 10101,
+    "UpgradeCalicoHeight": 10101,
+    "UpgradePersianHeight": 10101,
+    "UpgradeOrangeHeight": 10101,
+    "UpgradeClausHeight": 10101,
+    "UpgradeTrustHeight": 10101,
+    "UpgradeNorwegianHeight": 10101,
+    "UpgradeTurboHeight": 10101,
+    "UpgradeHyperdriveHeight": 10101,
+    "UpgradeChocolateHeight": 10101,
+    "UpgradeOhSnapHeight": 10101
+  }
+}
+```
+
 ### StateGetRandomnessFromBeacon
 StateGetRandomnessFromBeacon is used to sample the beacon for randomness.
 
@@ -5432,7 +5507,7 @@ Response:
       "VerifiedDeal": true,
       "Client": "f01234",
       "Provider": "f01234",
-      "Label": "string value",
+      "Label": "",
       "StartEpoch": 10101,
       "EndEpoch": 10101,
       "StoragePricePerEpoch": "0",
@@ -5510,7 +5585,7 @@ Response:
     "VerifiedDeal": true,
     "Client": "f01234",
     "Provider": "f01234",
-    "Label": "string value",
+    "Label": "",
     "StartEpoch": 10101,
     "EndEpoch": 10101,
     "StoragePricePerEpoch": "0",
@@ -5565,6 +5640,8 @@ Response:
     "InitialPledge": "0",
     "ExpectedDayReward": "0",
     "ExpectedStoragePledge": "0",
+    "ReplacedSectorAge": 10101,
+    "ReplacedDayReward": "0",
     "SectorKeyCID": null
   }
 ]
@@ -6028,6 +6105,8 @@ Response:
     "InitialPledge": "0",
     "ExpectedDayReward": "0",
     "ExpectedStoragePledge": "0",
+    "ReplacedSectorAge": 10101,
+    "ReplacedDayReward": "0",
     "SectorKeyCID": null
   }
 ]
@@ -6063,7 +6142,7 @@ Inputs:
 ]
 ```
 
-Response: `15`
+Response: `16`
 
 ### StateReadState
 StateReadState returns the indicated actor's state.
@@ -6449,6 +6528,8 @@ Response:
   "InitialPledge": "0",
   "ExpectedDayReward": "0",
   "ExpectedStoragePledge": "0",
+  "ReplacedSectorAge": 10101,
+  "ReplacedDayReward": "0",
   "SectorKeyCID": null
 }
 ```

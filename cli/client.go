@@ -23,7 +23,6 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/docker/go-units"
 	"github.com/fatih/color"
-	datatransfer "github.com/filecoin-project/go-data-transfer"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-cidutil/cidenc"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -31,13 +30,12 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
-
 	"github.com/filecoin-project/go-address"
+	datatransfer "github.com/filecoin-project/go-data-transfer"
+	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-
-	"github.com/filecoin-project/go-fil-markets/storagemarket"
 
 	"github.com/filecoin-project/lotus/api"
 	lapi "github.com/filecoin-project/lotus/api"
@@ -515,7 +513,7 @@ The minimum value is 518400 (6 months).`,
 }
 
 func interactiveDeal(cctx *cli.Context) error {
-	api, closer, err := GetFullNodeAPI(cctx)
+	api, closer, err := GetFullNodeAPIV1(cctx)
 	if err != nil {
 		return err
 	}
@@ -557,6 +555,10 @@ func interactiveDeal(cctx *cli.Context) error {
 			return err
 		}
 		a = def
+	}
+
+	if _, err := api.StateGetActor(ctx, a, types.EmptyTSK); err != nil {
+		return xerrors.Errorf("address not initialized on chain: %w", err)
 	}
 
 	fromBal, err := api.WalletBalance(ctx, a)
@@ -873,8 +875,7 @@ uiLoop:
 					continue uiLoop
 				}
 
-				ask = append(ask, *a)
-
+				ask = append(ask, *a.Response)
 			}
 
 			// TODO: run more validation
@@ -1404,9 +1405,13 @@ var clientListAsksCmd = &cli.Command{
 			Value: "text",
 			Usage: "Either 'text' or 'csv'",
 		},
+		&cli.BoolFlag{
+			Name:  "protocols",
+			Usage: "Output supported deal protocols",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
-		api, closer, err := GetFullNodeAPI(cctx)
+		api, closer, err := GetFullNodeAPIV1(cctx)
 		if err != nil {
 			return err
 		}
@@ -1423,14 +1428,19 @@ var clientListAsksCmd = &cli.Command{
 				return asks[i].Ping < asks[j].Ping
 			})
 		}
-		pfmt := "%s: min:%s max:%s price:%s/GiB/Epoch verifiedPrice:%s/GiB/Epoch ping:%s\n"
+		pfmt := "%s: min:%s max:%s price:%s/GiB/Epoch verifiedPrice:%s/GiB/Epoch ping:%s protos:%s\n"
 		if cctx.String("output-format") == "csv" {
-			fmt.Printf("Miner,Min,Max,Price,VerifiedPrice,Ping\n")
-			pfmt = "%s,%s,%s,%s,%s,%s\n"
+			fmt.Printf("Miner,Min,Max,Price,VerifiedPrice,Ping,Protocols")
+			pfmt = "%s,%s,%s,%s,%s,%s,%s\n"
 		}
 
 		for _, a := range asks {
 			ask := a.Ask
+
+			protos := ""
+			if cctx.Bool("protocols") {
+				protos = "[" + strings.Join(a.DealProtocols, ",") + "]"
+			}
 
 			fmt.Printf(pfmt, ask.Miner,
 				types.SizeStr(types.NewInt(uint64(ask.MinPieceSize))),
@@ -1438,6 +1448,7 @@ var clientListAsksCmd = &cli.Command{
 				types.FIL(ask.Price),
 				types.FIL(ask.VerifiedPrice),
 				a.Ping,
+				protos,
 			)
 		}
 
@@ -1446,11 +1457,13 @@ var clientListAsksCmd = &cli.Command{
 }
 
 type QueriedAsk struct {
-	Ask  *storagemarket.StorageAsk
+	Ask           *storagemarket.StorageAsk
+	DealProtocols []string
+
 	Ping time.Duration
 }
 
-func GetAsks(ctx context.Context, api v0api.FullNode) ([]QueriedAsk, error) {
+func GetAsks(ctx context.Context, api lapi.FullNode) ([]QueriedAsk, error) {
 	isTTY := true
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) == 0 {
 		isTTY = false
@@ -1561,7 +1574,9 @@ loop:
 				atomic.AddInt64(&got, 1)
 				lk.Lock()
 				asks = append(asks, QueriedAsk{
-					Ask:  ask,
+					Ask:           ask.Response,
+					DealProtocols: ask.DealProtocols,
+
 					Ping: pingDuration,
 				})
 				lk.Unlock()
@@ -1641,7 +1656,7 @@ var clientQueryAskCmd = &cli.Command{
 				return xerrors.Errorf("failed to get peerID for miner: %w", err)
 			}
 
-			if mi.PeerId == nil || *mi.PeerId == peer.ID("SETME") {
+			if mi.PeerId == nil || *mi.PeerId == ("SETME") {
 				return fmt.Errorf("the miner hasn't initialized yet")
 			}
 

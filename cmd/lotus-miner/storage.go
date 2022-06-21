@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/filecoin-project/lotus/api/v0api"
-
 	"github.com/docker/go-units"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
@@ -22,16 +20,18 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
 	lcli "github.com/filecoin-project/lotus/cli"
-	"github.com/filecoin-project/lotus/extern/sector-storage/fsutil"
-	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
-	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
-	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/lotus/lib/tablewriter"
+	"github.com/filecoin-project/lotus/storage/paths"
+	sealing "github.com/filecoin-project/lotus/storage/pipeline"
+	"github.com/filecoin-project/lotus/storage/sealer/fsutil"
+	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
 const metaFile = "sectorstore.json"
@@ -145,8 +145,8 @@ over time
 				}
 			}
 
-			cfg := &stores.LocalStorageMeta{
-				ID:         stores.ID(uuid.New().String()),
+			cfg := &paths.LocalStorageMeta{
+				ID:         storiface.ID(uuid.New().String()),
 				Weight:     cctx.Uint64("weight"),
 				CanSeal:    cctx.Bool("seal"),
 				CanStore:   cctx.Bool("store"),
@@ -209,8 +209,8 @@ var storageListCmd = &cli.Command{
 		}
 
 		type fsInfo struct {
-			stores.ID
-			sectors []stores.Decl
+			storiface.ID
+			sectors []storiface.Decl
 			stat    fsutil.FsStat
 		}
 
@@ -364,8 +364,8 @@ var storageListCmd = &cli.Command{
 }
 
 type storedSector struct {
-	id    stores.ID
-	store stores.SectorStorageInfo
+	id    storiface.ID
+	store storiface.SectorStorageInfo
 
 	unsealed, sealed, cache bool
 	update, updatecache     bool
@@ -432,7 +432,7 @@ var storageFindCmd = &cli.Command{
 			return xerrors.Errorf("finding cache: %w", err)
 		}
 
-		byId := map[stores.ID]*storedSector{}
+		byId := map[storiface.ID]*storedSector{}
 		for _, info := range u {
 			sts, ok := byId[info.ID]
 			if !ok {
@@ -557,7 +557,7 @@ var storageListSectorsCmd = &cli.Command{
 		}
 		defer closer()
 
-		napi, closer2, err := lcli.GetFullNodeAPI(cctx)
+		napi, closer2, err := lcli.GetFullNodeAPIV1(cctx)
 		if err != nil {
 			return err
 		}
@@ -592,15 +592,22 @@ var storageListSectorsCmd = &cli.Command{
 			}
 		}
 
+		allParts, err := getAllPartitions(ctx, maddr, napi)
+		if err != nil {
+			return xerrors.Errorf("getting partition states: %w", err)
+		}
+
 		type entry struct {
 			id      abi.SectorNumber
-			storage stores.ID
+			storage storiface.ID
 			ft      storiface.SectorFileType
 			urls    string
 
 			primary, copy, main, seal, store bool
 
 			state api.SectorState
+
+			faulty bool
 		}
 
 		var list []entry
@@ -609,6 +616,10 @@ var storageListSectorsCmd = &cli.Command{
 			st, err := nodeApi.SectorsStatus(ctx, sector, false)
 			if err != nil {
 				return xerrors.Errorf("getting sector status for sector %d: %w", sector, err)
+			}
+			fault, err := allParts.FaultySectors.IsSet(uint64(sector))
+			if err != nil {
+				return xerrors.Errorf("checking if sector is faulty: %w", err)
 			}
 
 			for _, ft := range storiface.PathTypes {
@@ -632,7 +643,8 @@ var storageListSectorsCmd = &cli.Command{
 						seal:  info.CanSeal,
 						store: info.CanStore,
 
-						state: st.State,
+						state:  st.State,
+						faulty: fault,
 					})
 				}
 			}
@@ -660,6 +672,7 @@ var storageListSectorsCmd = &cli.Command{
 			tablewriter.Col("Sector"),
 			tablewriter.Col("Type"),
 			tablewriter.Col("State"),
+			tablewriter.Col("Faulty"),
 			tablewriter.Col("Primary"),
 			tablewriter.Col("Path use"),
 			tablewriter.Col("URLs"),
@@ -687,11 +700,61 @@ var storageListSectorsCmd = &cli.Command{
 				"Path use": maybeStr(e.seal, color.FgMagenta, "seal ") + maybeStr(e.store, color.FgCyan, "store"),
 				"URLs":     e.urls,
 			}
+			if e.faulty {
+				// only set when there is a fault, so the column is hidden with no faults
+				m["Faulty"] = color.RedString("faulty")
+			}
 			tw.Write(m)
 		}
 
 		return tw.Flush(os.Stdout)
 	},
+}
+
+func getAllPartitions(ctx context.Context, maddr address.Address, napi api.FullNode) (api.Partition, error) {
+	deadlines, err := napi.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return api.Partition{}, xerrors.Errorf("getting deadlines: %w", err)
+	}
+
+	out := api.Partition{
+		AllSectors:        bitfield.New(),
+		FaultySectors:     bitfield.New(),
+		RecoveringSectors: bitfield.New(),
+		LiveSectors:       bitfield.New(),
+		ActiveSectors:     bitfield.New(),
+	}
+
+	for dlIdx := range deadlines {
+		partitions, err := napi.StateMinerPartitions(ctx, maddr, uint64(dlIdx), types.EmptyTSK)
+		if err != nil {
+			return api.Partition{}, xerrors.Errorf("getting partitions for deadline %d: %w", dlIdx, err)
+		}
+
+		for _, partition := range partitions {
+			out.AllSectors, err = bitfield.MergeBitFields(out.AllSectors, partition.AllSectors)
+			if err != nil {
+				return api.Partition{}, err
+			}
+			out.FaultySectors, err = bitfield.MergeBitFields(out.FaultySectors, partition.FaultySectors)
+			if err != nil {
+				return api.Partition{}, err
+			}
+			out.RecoveringSectors, err = bitfield.MergeBitFields(out.RecoveringSectors, partition.RecoveringSectors)
+			if err != nil {
+				return api.Partition{}, err
+			}
+			out.LiveSectors, err = bitfield.MergeBitFields(out.LiveSectors, partition.LiveSectors)
+			if err != nil {
+				return api.Partition{}, err
+			}
+			out.ActiveSectors, err = bitfield.MergeBitFields(out.ActiveSectors, partition.ActiveSectors)
+			if err != nil {
+				return api.Partition{}, err
+			}
+		}
+	}
+	return out, nil
 }
 
 func maybeStr(c bool, col color.Attribute, s string) string {
